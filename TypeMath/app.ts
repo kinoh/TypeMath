@@ -23,6 +23,7 @@ class Greeter
 	public formula = new Formula(null);
 	public activeFormula = this.formula;
 	public activeIndex = 0;
+	public markedIndex = -1;
 	public currentInput = "";
 	public type = InputType.Empty;
 
@@ -129,6 +130,7 @@ class Greeter
 				break;
 		}
 
+		e.preventDefault();
 		this.render();
 	}
 	public moveHorizontal(toLeft: boolean): void
