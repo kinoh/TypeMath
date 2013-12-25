@@ -37,8 +37,9 @@ class LaTeX
                     return LaTeX.macro("frac",
                         LaTeX.trans(s.tokens[0]),
                         LaTeX.trans(s.tokens[1]));
-                case StructType.Infer:
-                    return LaTeX.macro("infer",
+				case StructType.Infer:
+					var opt = LaTeX.trans(s.tokens[2]);
+					return LaTeX.macro("infer" + (opt != "" ? "[" + opt + "]" : ""),
                         LaTeX.trans(s.tokens[0]),
                         LaTeX.trans(s.tokens[1]));
                 case StructType.Power:

@@ -86,6 +86,8 @@ class Structure extends TokenSeq
 		switch (type)
 		{
 			case StructType.Infer:
+				this.count = 3;
+				break;
 			case StructType.Frac:
 			case StructType.BigOpr:
 				this.count = 2;
@@ -99,6 +101,14 @@ class Structure extends TokenSeq
 		this.tokens = new Array(this.count);
 		for (var i = 0; i < this.count; i++)
 			this.tokens[i] = new Formula(this);
+	}
+
+	public next = (t: Token) => /* override */
+	{
+		var i = this.tokens.indexOf(t);
+		if (i != 0)
+			return null;
+		return this.tokens[i + 1];
 	}
 
 	public toString(): string

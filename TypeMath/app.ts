@@ -173,9 +173,18 @@ class Greeter
 		else if (p instanceof Structure)
 		{
 			var s = <Structure>p;
-			var f = <Formula>(s.parent);
-			this.activeIndex = f.tokens.indexOf(s) + (toLeft ? 0 : 1);
-			this.activeFormula = f;
+			if (s.type == StructType.Infer && !toLeft
+				&& s.tokens.indexOf(this.activeFormula) < 2)
+			{
+				this.activeFormula = <Formula>s.tokens[2];
+				this.activeIndex = 0;
+			}
+			else
+			{
+				var f = <Formula>(s.parent);
+				this.activeIndex = f.tokens.indexOf(s) + (toLeft ? 0 : 1);
+				this.activeFormula = f;
+			}
 		}
 	}
 	public moveVertical(toUpper: boolean): void
@@ -340,6 +349,8 @@ class Greeter
 				struct = new Structure(this.activeFormula, s == "infer" ? StructType.Infer : StructType.Frac);
 				struct.tokens[0] = new Formula(struct);
 				struct.tokens[1] = new Formula(struct);
+				if (struct.type == StructType.Infer)
+					struct.tokens[2] = new Formula(struct);
 				t = struct;
 				break;
 			case "^":
@@ -441,6 +452,12 @@ class Greeter
 				this.outputToken(a2, s.tokens[1]);
 
 				q.append(tag);
+
+				if (s.type == StructType.Infer)
+				{
+					var a3 = $("<div/>").addClass("math");
+					this.outputToken(q, s.tokens[2]);
+				}
 				break;
 
 			case StructType.Power:
