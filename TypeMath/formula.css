@@ -37,6 +37,11 @@
 	border-top: solid 1px #000;
 }
 
+.label
+{
+	margin-bottom: 1em;
+}
+
 .power
 {
 	margin-bottom: 1em;

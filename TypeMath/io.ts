@@ -1,6 +1,6 @@
 ﻿enum ControlKey
 {
-	Left, Right, Up, Down, Backspace, Delete, Tab, Enter
+	Left, Right, Up, Down, Backspace, Delete, Tab, Enter, Shift
 }
 
 class IO
@@ -51,6 +51,7 @@ class IO
 			case 8: return ControlKey.Backspace;
 			case 9: return ControlKey.Tab;
 			case 13: return ControlKey.Enter;
+			case 16: return ControlKey.Shift;
 			case 37: return ControlKey.Left;
 			case 38: return ControlKey.Up;
 			case 39: return ControlKey.Right;

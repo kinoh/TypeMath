@@ -6,20 +6,34 @@ class LaTeX
 		"\u2227": "land",
 		"\u2228": "lor",
 		"\uFFE2": "lnot",
-		"\u2192": "to"
+		"\u2192": "to",
+		"\u22A5": "bot"
     };
 
-    public static macro(n: string, ...args: string[]): string
+    public static macro(n: string, ...args: Token[]): string
     {
-        return "\\" + n + "{ " + args.join(" }{ ") + " }";
+		return "\\" + n + "{ " + args.map(t => LaTeX.trans(t)).join(" }{ ") + " }";
     }
 
-    public static trans(t: Token): string
+	public static macroBreaked(n: string, indent: string, ...args: Token[]): string
 	{
+		var inner = indent + "  ";
+		return "\\" + n + " {\n"
+			+ inner + args.map(t => LaTeX.trans(t, inner)).join("\n" + indent + "}{\n" + inner) + "\n"
+			+ indent + "}";
+	}
+
+    public static trans(t: Token, indent?: string): string
+	{
+		if (indent == undefined)
+			indent = "";
+
 		if (t instanceof Symbol)
 		{
-            var c = (<Symbol>t).ident;
-            if (c in LaTeX.symbols)
+			var c = (<Symbol>t).ident;
+			if (c == "&")
+				return "&\n" + indent.slice(0, -1);
+            else if (c in LaTeX.symbols)
                 return "\\" + LaTeX.symbols[c];
             else
     			return c;
@@ -34,14 +48,11 @@ class LaTeX
             switch (s.type)
             {
                 case StructType.Frac:
-                    return LaTeX.macro("frac",
-                        LaTeX.trans(s.tokens[0]),
-                        LaTeX.trans(s.tokens[1]));
+                    return LaTeX.macro("frac", s.tokens[0], s.tokens[1]);
 				case StructType.Infer:
 					var opt = LaTeX.trans(s.tokens[2]);
-					return LaTeX.macro("infer" + (opt != "" ? "[" + opt + "]" : ""),
-                        LaTeX.trans(s.tokens[0]),
-                        LaTeX.trans(s.tokens[1]));
+					return LaTeX.macroBreaked("infer" + (opt != "" ? "[" + opt + "]" : ""),
+						indent, s.tokens[1], s.tokens[0]);
                 case StructType.Power:
                     return "^{ " + LaTeX.trans(s.tokens[0]) + " }";
             }
@@ -49,7 +60,7 @@ class LaTeX
 		else if (t instanceof Formula)
 		{
 			var f = <Formula>t;
-            return f.prefix + f.tokens.map(LaTeX.trans).join(" ") + f.suffix;
+            return f.prefix + f.tokens.map(s => LaTeX.trans(s, indent)).join(" ") + f.suffix;
 		}
 		else
 			return "?";

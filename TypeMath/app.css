@@ -3,6 +3,11 @@
 	font-family: 'Segoe UI', sans-serif;
 }
 
+.panel
+{
+	margin: 1em;
+}
+
 #field
 {
 	border: solid 1px #000;
@@ -14,6 +19,7 @@
 	font-family: monospace;
 	border: dashed 1px #000;
 	padding: 0.4em 1em;
+	white-space: pre-wrap;
 }
 
 .active
@@ -25,4 +31,9 @@
 
 .curret
 {
+}
+
+.marked
+{
+	background-color: #ecf;
 }

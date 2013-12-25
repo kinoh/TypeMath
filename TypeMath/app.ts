@@ -33,6 +33,7 @@ class Greeter
 		"or",
 		"not",
 		"imp",
+		"bot",
 		"+", "-", "*", "/", "^", "(", ")", "[", "]", "{", "}"
 	];
 
@@ -40,14 +41,28 @@ class Greeter
 		"and": "\u2227",
 		"or": "\u2228",
 		"not": "\uFFE2",
-		"imp": "\u2192"
+		"imp": "\u2192",
+		"bot": "\u22A5"
 	};
 
-	public constructor(field: JQuery, latex: JQuery)
+	public constructor(field: JQuery, latex: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.latex = latex;
 		document.onkeydown = (e) => { this.processInput(e) };
+		proof.change(e =>
+		{
+			if (proof.prop("checked"))
+			{
+				this.field.removeClass("math");
+				this.field.addClass("formula");
+			}
+			else
+			{
+				this.field.removeClass("formula");
+				this.field.addClass("math");
+			}
+		});
 
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
@@ -70,6 +85,8 @@ class Greeter
 			this.processControlInput(e);
 			return;
 		}
+
+		this.markedIndex = -1;
 
 		if (this.type == InputType.Empty)
 		{
@@ -103,6 +120,8 @@ class Greeter
 	}
 	public processControlInput(e: KeyboardEvent): void
 	{
+		var suppress = true;
+
 		switch (this.io.knowControlKey(e))
 		{
 			case ControlKey.Left:
@@ -128,9 +147,18 @@ class Greeter
 					this.activeIndex--;
 				}
 				break;
+			case ControlKey.Shift:
+				if (this.markedIndex < 0)
+					this.markedIndex = this.activeIndex;
+				else
+					this.markedIndex = -1;
+				break;
+			default:
+				suppress = false;
 		}
 
-		e.preventDefault();
+		if (suppress)
+			e.preventDefault();
 		this.render();
 	}
 	public moveHorizontal(toLeft: boolean): void
@@ -147,7 +175,7 @@ class Greeter
 			&& this.activeIndex + dif <= this.activeFormula.count)
 		{
 			var dest = this.activeFormula.tokens[this.activeIndex + (toLeft ? -1 : 0)];
-			if (dest instanceof TokenSeq)
+			if (this.markedIndex < 0 && dest instanceof TokenSeq)
 			{
 				if (dest instanceof Structure)
 					this.activeFormula = <Formula>(<Structure>dest).tokens[0];
@@ -170,12 +198,15 @@ class Greeter
 		{
 			var f = <Formula>p;
 			this.activeIndex = f.tokens.indexOf(this.activeFormula) + (toLeft ? 0 : 1);
+			if (this.markedIndex >= 0)
+				this.markedIndex = this.activeIndex + (toLeft ? 1 : -1);
 			this.activeFormula = f;
 		}
 		else if (p instanceof Structure)
 		{
 			var s = <Structure>p;
-			if (s.type == StructType.Infer && !toLeft
+			if (this.markedIndex < 0
+				&& s.type == StructType.Infer && !toLeft
 				&& s.tokens.indexOf(this.activeFormula) < 2)
 			{
 				this.activeFormula = <Formula>s.tokens[2];
@@ -185,6 +216,8 @@ class Greeter
 			{
 				var f = <Formula>(s.parent);
 				this.activeIndex = f.tokens.indexOf(s) + (toLeft ? 0 : 1);
+				if (this.markedIndex >= 0)
+					this.markedIndex = this.activeIndex + (toLeft ? 1 : -1);
 				this.activeFormula = f;
 			}
 		}
@@ -196,6 +229,8 @@ class Greeter
 			this.receiveSymbol(" ");
 			return;
 		}
+		else if (this.markedIndex >= 0)
+			return;
 
 		var ac: TokenSeq = this.activeFormula;
 		var p = ac.parent;
@@ -407,6 +442,10 @@ class Greeter
 
 			if (f == this.activeFormula)
 			{
+				var r: JQuery;
+				var markedFrom = Math.min(this.markedIndex, this.activeIndex);
+				var markedTo = Math.max(this.markedIndex, this.activeIndex);
+				var marked = false;
 				for (var i = 0, j = 0; i <= f.count; i++)
 				{
 					if (i == this.activeIndex)
@@ -415,10 +454,22 @@ class Greeter
 						q.append(this.active);
 						this._elog("curret rendered");
 					}
+					if (this.markedIndex >= 0)
+					{
+						if (j == markedFrom)
+						{
+							r = $("<div/>").addClass("math marked");
+							q.append(r);
+							marked = true;
+						}
+						if (j == markedTo)
+							marked = false;
+					}
 					if (j == f.count)
 						break;
 					this._elog("output formulaA" + (j + 1) + "/" + f.tokens.length);
-					this.outputToken(q, f.tokens[j++]);
+
+					this.outputToken(marked ? r : q, f.tokens[j++]);
 				}
 			}
 			else if (f.tokens.length > 0)
@@ -457,8 +508,9 @@ class Greeter
 
 				if (s.type == StructType.Infer)
 				{
-					var a3 = $("<div/>").addClass("math");
-					this.outputToken(q, s.tokens[2]);
+					var a3 = $("<div/>").addClass("math label");
+					q.append(a3);
+					this.outputToken(a3, s.tokens[2]);
 				}
 				break;
 
@@ -487,5 +539,5 @@ var greeter;
 
 window.onload = () =>
 {
-	greeter = new Greeter($("#field"), $("#latex"));
+	greeter = new Greeter($("#field"), $("#latex"), $("#proofMode"));
 };
