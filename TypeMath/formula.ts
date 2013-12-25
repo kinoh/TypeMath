@@ -149,6 +149,27 @@ class Formula extends TokenSeq
 		this.tokens.splice(i, 1);
 	}
 
+	public copy(a: number, b: number): Token[]
+	{
+		var from = Math.min(a, b);
+		var to = Math.max(a, b);
+
+		return this.tokens.slice(from, to);
+	}
+	public cut(a: number, b: number): Token[]
+	{
+		var from = Math.min(a, b);
+		var len = Math.abs(a - b);
+
+		return this.tokens.splice(from, len);
+	}
+
+	public paste(i: number, t: Token[]): void
+	{
+		this.tokens = this.tokens.slice(0, i).concat(
+			t.concat(this.tokens.slice(i)));
+	}
+
 	public toString(): string
 	{
 		return this.prefix + this.tokens.map(t => t.toString()).join(" ") + this.suffix;

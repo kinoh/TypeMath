@@ -26,6 +26,7 @@ class Greeter
 	public markedIndex = -1;
 	public currentInput = "";
 	public type = InputType.Empty;
+	public clipboard: Token[] = null;
 
 	dictionary: string[] = [
 		"infer",
@@ -83,6 +84,11 @@ class Greeter
 		if (key == "")
 		{
 			this.processControlInput(e);
+			return;
+		}
+		else if (e.ctrlKey)
+		{
+			this.processModifiedInput(key);
 			return;
 		}
 
@@ -159,6 +165,36 @@ class Greeter
 
 		if (suppress)
 			e.preventDefault();
+		this.render();
+	}
+	public processModifiedInput(key: string): void
+	{
+		switch (key)
+		{
+			case "c":
+				if (this.markedIndex >= 0)
+				{
+					this.clipboard = this.activeFormula.copy(this.markedIndex, this.activeIndex);
+					this.markedIndex = -1;
+				}
+				break;
+			case "x":
+				if (this.markedIndex >= 0)
+				{
+					this.clipboard = this.activeFormula.cut(this.markedIndex, this.activeIndex);
+					this.activeIndex = Math.min(this.activeIndex, this.markedIndex);
+					this.markedIndex = -1;
+				}
+				break;
+			case "v":
+				if (this.clipboard != null)
+				{
+					this.activeFormula.paste(this.activeIndex, this.clipboard);
+					this.activeIndex += this.clipboard.length;
+				}
+				break;			
+		}
+
 		this.render();
 	}
 	public moveHorizontal(toLeft: boolean): void
