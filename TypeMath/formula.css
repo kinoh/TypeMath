@@ -1,0 +1,58 @@
+﻿.math
+{
+	display: box; display: -moz-box; display: -webkit-box;
+	box-align: center; -webkit-box-align: center; -moz-box-align: center;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
+	text-align: center;
+}
+
+.frac
+{
+	display: box; display: -moz-box; display: -webkit-box;
+	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical;
+}
+
+.symbol
+{
+	margin: 0.1em;
+	border: solid 1px #99f;
+}
+
+.field
+{
+	display: box; display: -moz-box; display: -webkit-box;
+}
+
+.formula
+{
+	display: box; display: -moz-box; display: -webkit-box;
+	box-align: end; -webkit-box-align: end; -moz-box-align: end;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
+}
+
+.infered
+{
+	border-top: solid 1px #000;
+}
+
+.power
+{
+	margin-bottom: 1em;
+	font-size: smaller;
+}
+
+.active
+{
+	
+}
+
+.brace
+{
+}
+
+.blank
+{
+	border: dotted 1px #666;
+}
