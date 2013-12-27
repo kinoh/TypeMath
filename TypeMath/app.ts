@@ -8,6 +8,7 @@ enum InputType
 {
 	Empty,
 	Number,
+	Symbol,
 	String
 }
 
@@ -28,22 +29,23 @@ class Greeter
 	public type = InputType.Empty;
 	public clipboard: Token[] = null;
 
-	dictionary: string[] = [
-		"infer",
-		"and",
-		"or",
-		"not",
-		"imp",
-		"bot",
-		"+", "-", "*", "/", "^", "(", ")", "[", "]", "{", "}"
+	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+	symbols: string[] = [
+		"+", "-", "*", "/", "^", "<=", ">=", "(", ")", "[", "]", "{", "}"
 	];
 
-	symbols: { [key: string]: string } = {
+	keywords: { [key: string]: string } = {
 		"and": "\u2227",
 		"or": "\u2228",
 		"not": "\uFFE2",
 		"imp": "\u2192",
-		"bot": "\u22A5"
+		"bot": "\u22A5",
+		"forall": "\u2200",
+		"exists": "\u2203",
+		"<=": "\u2264",
+		">=": "\u2265",
+		"infer": "",
+		"frac": ""
 	};
 
 	public constructor(field: JQuery, latex: JQuery, proof: JQuery)
@@ -93,36 +95,48 @@ class Greeter
 		}
 
 		this.markedIndex = -1;
+		var t = this.getInputType(key);
+
+		if (key)
 
 		if (this.type == InputType.Empty)
 		{
-			if (IO.isDigit(key))
+			if (t == InputType.Number)
 				this.receiveNumber(key);
 			else
 				this.receiveSymbol(key);
 		}
 		else if (this.type == InputType.Number)
 		{
-			if (IO.isDigit(key) || key == ".")
+			if (t == this.type || key == ".")
 				this.receiveNumber(key);
 			else
 			{
-				this.pushNumber();
+				this.receiveSymbol(" ");
 				this.receiveSymbol(key);
 			}
 		}
 		else
 		{
-			if (IO.isDigit(key))
+			if (t == this.type)
+				this.receiveSymbol(key);
+			else
 			{
-				this.pushSymbols();
+				this.receiveSymbol(" ");
 				this.receiveNumber(key);
 			}
-			else
-				this.receiveSymbol(key);
 		}
 
 		this.render();
+	}
+	private getInputType(s: string): InputType
+	{
+		if (this.digits.indexOf(s) >= 0)
+			return InputType.Number;
+		else if (this.symbols.indexOf(s) >= 0)
+			return InputType.Symbol;
+		else
+			return InputType.String;
 	}
 	public processControlInput(e: KeyboardEvent): void
 	{
@@ -201,8 +215,13 @@ class Greeter
 	{
 		if (this.currentInput != "")
 		{
-			this.currentInput = this.currentInput.slice(0, -1);
-			return;
+			if (toLeft)
+			{
+				this.currentInput = this.currentInput.slice(0, -1);
+				return;
+			}
+			else
+				this.receiveSymbol(" ");
 		}
 
 		var dif = toLeft ? -1 : 1;
@@ -263,7 +282,6 @@ class Greeter
 		if (this.currentInput != "")
 		{
 			this.receiveSymbol(" ");
-			return;
 		}
 		else if (this.markedIndex >= 0)
 			return;
@@ -298,6 +316,7 @@ class Greeter
 		if (key == " ")
 		{
 			var t: Token;
+			var input = this.currentInput + (key == " " ? "" : key);
 
 			if (this.currentInput == "")
 			{
@@ -311,9 +330,9 @@ class Greeter
 				}
 			}
 			else
-				t = this.tryParse(this.currentInput + (key == " " ? "" : key));
+				t = this.tryParse(input);
 
-			if (t != null)
+			if (t != null)	// should be unified to tryParse?
 			{
 				if (t instanceof Formula)
 				{
@@ -328,13 +347,15 @@ class Greeter
 					var s = <Structure>t;
 					if (s.type == StructType.Frac)
 					{
-						if (this.activeIndex > 0)
+						if (this.activeIndex > 0 && input == "/")
 						{
 							(<Formula>s.tokens[0]).insert(0,
 								this.activeFormula.tokens[this.activeIndex - 1]);
 							this.activeFormula.remove(this.activeIndex - 1);
+							this.activeFormula = <Formula>s.tokens[1];
 						}
-						this.activeFormula = <Formula>s.tokens[1];
+						else
+							this.activeFormula = <Formula>s.tokens[0];
 					}
 					else if (s.type == StructType.Infer)
 					{
@@ -410,7 +431,7 @@ class Greeter
 	{
 		var t: Token = null;
 
-		if (!this.dictionary.some(word => word == s))
+		if (!(this.symbols.some(word => word == s) || s in this.keywords))
 			return null;
 
 		var struct: Structure;
@@ -438,7 +459,7 @@ class Greeter
 				t = new Formula(this.activeFormula, "[", "]");
 				break;
 			default:
-				t = new Symbol(s in this.symbols ? this.symbols[s] : s);
+				t = new Symbol(s in this.keywords ? this.keywords[s] : s);
 				break;
 		}
 

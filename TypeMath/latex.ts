@@ -7,7 +7,11 @@ class LaTeX
 		"\u2228": "lor",
 		"\uFFE2": "lnot",
 		"\u2192": "to",
-		"\u22A5": "bot"
+		"\u22A5": "bot",
+		"\u2200": "forall",
+		"\u2203": "exists",
+		"{": "{",
+		"}": "}"
     };
 
     public static macro(n: string, ...args: Token[]): string
