@@ -22,6 +22,26 @@
 	white-space: pre-wrap;
 }
 
+#candy
+{
+	display: box; display: -moz-box; display: -webkit-box;
+	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical;
+	background-color: #fff;
+	border: solid 1px #000;
+	position: absolute;
+}
+
+.candidate
+{
+	padding-left: 0.3em;
+	padding-right: 0.3em;
+}
+
+.candidateSelected
+{
+	background-color: #cfc;
+}
+
 .active
 {
 	border: solid 1px #fcc;

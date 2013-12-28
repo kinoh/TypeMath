@@ -17,6 +17,7 @@ class Greeter
 	private field: JQuery;
 	public active: JQuery;
 	public latex: JQuery;
+	public candy: JQuery;
 	private io = new IO();
 	private _log: JQuery;
 	private _enableLog = false;
@@ -25,6 +26,9 @@ class Greeter
 	public activeFormula = this.formula;
 	public activeIndex = 0;
 	public markedIndex = -1;
+	public candIndex = -1;
+	public candCount = 0;
+	public candSelected: string;
 	public currentInput = "";
 	public type = InputType.Empty;
 	public clipboard: Token[] = null;
@@ -45,10 +49,14 @@ class Greeter
 		"frac": ""
 	};
 
-	public constructor(field: JQuery, latex: JQuery, proof: JQuery)
+	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.latex = latex;
+		this.candy = candy;
+
+		this.enrichKeywords();
+
 		document.onkeydown = (e) => { this.processInput(e) };
 		proof.change(e =>
 		{
@@ -63,8 +71,6 @@ class Greeter
 				this.field.addClass("math");
 			}
 		});
-
-		this.enrichKeywords();
 
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
@@ -84,7 +90,7 @@ class Greeter
 		this.field.empty();
 		this.outputToken(this.field, this.formula);
 		this.active.text(this.currentInput);
-		//this.active.append($("<span/>").text("_").addClass("curret"));
+		this.showCandidate();
 		this.latex.text(LaTeX.trans(this.formula));
 	}
 	public processInput(e: KeyboardEvent): void
@@ -104,8 +110,6 @@ class Greeter
 
 		this.markedIndex = -1;
 		var t = this.getInputType(key);
-
-		if (key)
 
 		if (this.type == InputType.Empty)
 		{
@@ -149,20 +153,41 @@ class Greeter
 	public processControlInput(e: KeyboardEvent): void
 	{
 		var suppress = true;
+		var key = this.io.knowControlKey(e);
 
-		switch (this.io.knowControlKey(e))
+		switch (key)
 		{
-			case ControlKey.Left:
-				this.moveHorizontal(true);
+			case ControlKey.Tab:
+				this.currentInput = this.candSelected;
 				break;
+			case ControlKey.Enter:
+				this.decideCandidate();
+				break;
+			case ControlKey.Left:
 			case ControlKey.Right:
-				this.moveHorizontal(false);
+				this.moveHorizontal(key == ControlKey.Left);
 				break;
 			case ControlKey.Up:
-				this.moveVertical(true);
+				if (this.currentInput != "")
+				{
+					if (this.candIndex < 0)
+						return;
+					if (--this.candIndex < 0)
+						this.candIndex = this.candCount - 1;
+				}
+				else
+					this.moveVertical(true);
 				break;
 			case ControlKey.Down:
-				this.moveVertical(false);
+				if (this.currentInput != "")
+				{
+					if (this.candIndex < 0)
+						return;
+					if (++this.candIndex >= this.candCount)
+						this.candIndex = 0;
+				}
+				else
+					this.moveVertical(false);
 				break;
 			case ControlKey.Backspace:
 				if (this.currentInput != "")
@@ -287,11 +312,7 @@ class Greeter
 	}
 	public moveVertical(toUpper: boolean): void
 	{
-		if (this.currentInput != "")
-		{
-			this.receiveSymbol(" ");
-		}
-		else if (this.markedIndex >= 0)
+		if (this.markedIndex >= 0)
 			return;
 
 		var ac: TokenSeq = this.activeFormula;
@@ -323,7 +344,7 @@ class Greeter
 	{
 		if (key == " ")
 		{
-			var t: Token;
+			var t: Token = null;
 			var input = this.currentInput + (key == " " ? "" : key);
 
 			if (this.currentInput == "")
@@ -337,62 +358,120 @@ class Greeter
 					}
 				}
 			}
-			else
+
+			if (t == null && (input.length > 1 || this.getInputType(input) != InputType.String))
 				t = this.tryParse(input);
 
-			if (t != null)	// should be unified to tryParse?
-			{
-				if (t instanceof Formula)
-				{
-					var ac = this.activeFormula;
-					this.activeFormula = <Formula>t;
-					ac.insert(this.activeIndex, t);
-					this.activeIndex = 0;
-				}
-				else if (t instanceof Structure)
-				{
-					var ac = this.activeFormula;
-					var s = <Structure>t;
-					if (s.type == StructType.Frac)
-					{
-						if (this.activeIndex > 0 && input == "/")
-						{
-							(<Formula>s.tokens[0]).insert(0,
-								this.activeFormula.tokens[this.activeIndex - 1]);
-							this.activeFormula.remove(this.activeIndex - 1);
-							this.activeFormula = <Formula>s.tokens[1];
-						}
-						else
-							this.activeFormula = <Formula>s.tokens[0];
-					}
-					else if (s.type == StructType.Infer)
-					{
-						this.activeFormula = <Formula>s.tokens[1];
-					}
-					else if (s.type == StructType.Power)
-					{
-						this.activeFormula = <Formula>s.tokens[0];
-					}
-					ac.insert(this.activeIndex, t);
-					this.activeIndex = 0;
-				}
-				else
-				{
-					this.activeFormula.insert(this.activeIndex, t);
-					this.activeIndex++;
-				}
-
-				this.currentInput = "";
-				this.type = InputType.Empty;
-			}
-			else
+			if (t == null)
 				this.pushSymbols();
+			else
+				this.insertToken(t);
+
+			this.currentInput = "";
+			this.type = InputType.Empty;
 		}
 		else
 		{
 			this.currentInput += key;
 			this.type = InputType.String;
 		}
+	}
+	private insertToken(t: Token): void
+	{
+		if (t instanceof Formula)
+		{
+			var ac = this.activeFormula;
+			this.activeFormula = <Formula>t;
+			ac.insert(this.activeIndex, t);
+			this.activeIndex = 0;
+		}
+		else if (t instanceof Structure)
+		{
+			var ac = this.activeFormula;
+			var s = <Structure>t;
+			if (s.type == StructType.Frac)
+			{
+				if (this.activeIndex > 0 && this.currentInput == "/")
+				{
+					(<Formula>s.tokens[0]).insert(0,
+						this.activeFormula.tokens[this.activeIndex - 1]);
+					this.activeFormula.remove(this.activeIndex - 1);
+					this.activeFormula = <Formula>s.tokens[1];
+				}
+				else
+					this.activeFormula = <Formula>s.tokens[0];
+			}
+			else if (s.type == StructType.Infer)
+			{
+				this.activeFormula = <Formula>s.tokens[1];
+			}
+			else if (s.type == StructType.Power)
+			{
+				this.activeFormula = <Formula>s.tokens[0];
+			}
+			ac.insert(this.activeIndex, t);
+			this.activeIndex = 0;
+		}
+		else
+		{
+			this.activeFormula.insert(this.activeIndex, t);
+			this.activeIndex++;
+		}
+	}
+	private decideCandidate(): void
+	{
+		if (this.candIndex < 0)
+		{
+			this.pushSymbols();
+			return;
+		}
+
+		var t = this.tryParse(this.candSelected);
+		this.insertToken(t);
+		this.currentInput = "";
+		this.type = InputType.Empty;
+	}
+	public showCandidate(): void
+	{
+		var key = this.currentInput;
+
+		var cand = Object.keys(this.keywords).filter(w => w.indexOf(key) == 0)
+			.concat(this.symbols.filter(w => w.indexOf(key) >= 0));
+
+		if (key.length == 0 || cand.length == 0)
+		{
+			this.candy.hide();
+			this.candIndex = -1;
+			return;
+		}
+
+		if (this.candIndex < 0)	// not shown now
+		{
+			var ofs = this.active.offset();
+
+			this.candy.css({
+				"left": ofs.left,
+				"top": ofs.top + this.active.height()
+			});
+			this.candIndex = 0;
+
+			this.candy.show();
+		}
+
+		this.candy.empty();
+		cand.forEach((c, i) =>
+		{
+			var glyph = (c in this.keywords ? this.keywords[c] : c);
+			var e = $("<div/>").addClass("candidate").text(c + " " + glyph);
+			if (i == this.candIndex)
+			{
+				e.addClass("candidateSelected");
+				this.candSelected = c;
+			}
+			this.candy.append(e);
+		});
+
+		this.candCount = cand.length;
 	}
 	private pushNumber(): void
 	{
@@ -604,5 +683,5 @@ var greeter;
 
 window.onload = () =>
 {
-	greeter = new Greeter($("#field"), $("#latex"), $("#proofMode"));
+	greeter = new Greeter($("#field"), $("#latex"), $("#candy"), $("#proofMode"));
 };
