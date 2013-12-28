@@ -1,4 +1,4 @@
-/// <reference path="jquery.d.ts" />
+﻿/// <reference path="jquery.d.ts" />
 /// <reference path="io.ts" />
 /// <reference path="formula.ts" />
 /// <reference path="latex.ts" />
@@ -35,15 +35,12 @@ class Greeter
 	];
 
 	keywords: { [key: string]: string } = {
-		"and": "\u2227",
-		"or": "\u2228",
-		"not": "\uFFE2",
-		"imp": "\u2192",
-		"bot": "\u22A5",
-		"forall": "\u2200",
-		"exists": "\u2203",
-		"<=": "\u2264",
-		">=": "\u2265",
+		"and": "∧",
+		"or": "∨",
+		"not": "￢",
+		"imp": "→",
+		"<=": "≤",
+		">=": "≥",
 		"infer": "",
 		"frac": ""
 	};
@@ -67,9 +64,20 @@ class Greeter
 			}
 		});
 
+		this.enrichKeywords();
+
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
 		this.render();
+	}
+	public enrichKeywords(): void
+	{
+		for (var c in LaTeX.symbols)
+		{
+			var key = LaTeX.symbols[c];
+			if (!(key in this.keywords))
+				this.keywords[key] = c;
+		}
 	}
 	public render(): void
 	{
