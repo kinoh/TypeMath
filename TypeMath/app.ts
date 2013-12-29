@@ -42,7 +42,7 @@ class Greeter
 	keywords: { [key: string]: string } = {
 		"and": "∧",
 		"or": "∨",
-		"not": "￢",
+		"not": "¬",
 		"imp": "→",
 		"<=": "≤",
 		">=": "≥",
@@ -65,13 +65,16 @@ class Greeter
 			{
 				this.field.removeClass("math");
 				this.field.addClass("formula");
+				LaTeX.proofMode = true;
 			}
 			else
 			{
 				this.field.removeClass("formula");
 				this.field.addClass("math");
+				LaTeX.proofMode = false;
 			}
 		});
+		proof.change();
 
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
@@ -135,7 +138,7 @@ class Greeter
 				this.receiveNumber(key);
 			else
 			{
-				this.receiveSymbol(" ");
+				this.pushNumber();
 				this.receiveSymbol(key);
 			}
 		}
@@ -446,8 +449,7 @@ class Greeter
 	{
 		var key = this.currentInput;
 
-		var cand = Object.keys(this.keywords).filter(w => w.indexOf(key) == 0)
-			.concat(this.symbols.filter(w => w.indexOf(key) >= 0));
+		var cand = Object.keys(this.keywords).filter(w => w.indexOf(key) == 0);
 
 		if (key.length == 0 || cand.length == 0)
 		{

@@ -2,6 +2,8 @@
 
 class LaTeX
 {
+	public static proofMode = false;
+
     public static macro(n: string, ...args: Token[]): string
     {
 		return "\\" + n + "{ " + args.map(t => LaTeX.trans(t)).join(" }{ ") + " }";
@@ -23,9 +25,22 @@ class LaTeX
 		if (t instanceof Symbol)
 		{
 			var c = (<Symbol>t).ident;
-			if (c == "&")
-				return "&\n" + indent.slice(0, -1);
-            else if (c in LaTeX.symbols)
+			if (this.proofMode)
+			{
+				switch (c)
+				{
+					case "&":
+						return "&\n" + indent.slice(0, -1);
+					case "∧":
+						return "\\land";
+					case "∨":
+						return "\\lor";
+					case "¬":
+					case "￢":
+						return "\\lnot";
+				}
+			}
+            if (c in LaTeX.symbols)
                 return "\\" + LaTeX.symbols[c];
             else
     			return c;
