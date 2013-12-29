@@ -128,9 +128,19 @@ class Greeter
 		if (key == " ")
 		{
 			if (this.currentInput == "")
-				this.moveHorizontal(false);
+			{
+				if (this.activeFormula.parent instanceof Structure
+					&& (<Structure> this.activeFormula.parent).type == StructType.Infer)
+				{
+					this.inputType = InputType.String;
+					this.currentInput = "&";
+					this.interpretSymbol();
+				}
+				else
+					this.moveHorizontal(false);
+			}
 			else
-				this.receiveSymbol();
+				this.interpretSymbol();
 		}
 		else if (this.inputType == InputType.Empty)
 		{
@@ -154,13 +164,14 @@ class Greeter
 				this.currentInput += key;
 			else
 			{
-				this.receiveSymbol();
+				this.interpretSymbol();
 				this.inputType = t;
 				this.currentInput += key;
 			}
 		}
 
 		this.render();
+		e.preventDefault();
 	}
 	private getInputType(s: string): InputType
 	{
@@ -262,7 +273,7 @@ class Greeter
 					this.activeFormula.paste(this.activeIndex, this.clipboard);
 					this.activeIndex += this.clipboard.length;
 				}
-				break;			
+				break;
 		}
 
 		this.render();
@@ -277,7 +288,7 @@ class Greeter
 				return;
 			}
 			else
-				this.receiveSymbol();
+				this.interpretSymbol();
 		}
 
 		var dif = toLeft ? -1 : 1;
@@ -358,75 +369,16 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	public receiveSymbol(): void
+	public interpretSymbol(): void
 	{
 		var t: Token = null;
 		var input = this.currentInput;
 
-		if (this.currentInput == "")
-		{
-			if (this.activeFormula.parent instanceof Structure)
-			{
-				var s = <Structure>this.activeFormula.parent;
-				if (s.type == StructType.Infer)
-				{
-					t = new Symbol("&");	// should be a new kind of Token?
-				}
-			}
-		}
-
-		if (t == null && (input.length > 1 || this.getInputType(input) != InputType.String))
-			t = this.tryParse(input);
-
-		if (t == null)
+		if (!(input.length == 1 && this.getInputType(input) == InputType.String)		// single character will not interpreted (unless, you cannot input "P"!)
+			&& (this.symbols.some(word => word == input) || input in this.keywords))
+			this.pushCommand();
+		else
 			this.pushSymbols();
-		else
-			this.insertToken(t);
-
-		this.currentInput = "";
-		this.inputType = InputType.Empty;
-	}
-	private insertToken(t: Token): void
-	{
-		if (t instanceof Formula)
-		{
-			var ac = this.activeFormula;
-			this.activeFormula = <Formula>t;
-			ac.insert(this.activeIndex, t);
-			this.activeIndex = 0;
-		}
-		else if (t instanceof Structure)
-		{
-			var ac = this.activeFormula;
-			var s = <Structure>t;
-			if (s.type == StructType.Frac)
-			{
-				if (this.activeIndex > 0 && this.currentInput == "/")
-				{
-					(<Formula>s.token(0)).insert(0,
-						this.activeFormula.tokens[this.activeIndex - 1]);
-					this.activeFormula.remove(this.activeIndex - 1);
-					this.activeFormula = <Formula>s.token(1);
-				}
-				else
-					this.activeFormula = <Formula>s.token(0);
-			}
-			else if (s.type == StructType.Infer)
-			{
-				this.activeFormula = <Formula>s.token(1);
-			}
-			else if (s.type == StructType.Power)
-			{
-				this.activeFormula = <Formula>s.token(0);
-			}
-			ac.insert(this.activeIndex, t);
-			this.activeIndex = 0;
-		}
-		else
-		{
-			this.activeFormula.insert(this.activeIndex, t);
-			this.activeIndex++;
-		}
 	}
 	private decideCandidate(): void
 	{
@@ -436,10 +388,8 @@ class Greeter
 			return;
 		}
 
-		var t = this.tryParse(this.candSelected);
-		this.insertToken(t);
-		this.currentInput = "";
-		this.inputType = InputType.Empty;
+		this.currentInput = this.candSelected;
+		this.interpretSymbol();
 	}
 	public showCandidate(): void
 	{
@@ -494,6 +444,64 @@ class Greeter
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
 	}
+	private pushCommand(): void
+	{
+		var close = { "(": ")", "{": "}", "[": "]", "|": "|" };
+		var input = this.currentInput;
+		var struct: Structure;
+		var ac = this.activeFormula;
+
+		switch (input)
+		{
+			case "infer":
+			case "/":
+			case "frac":
+				struct = new Structure(this.activeFormula,
+					input == "infer" ? StructType.Infer : StructType.Frac);
+				struct.elems[0] = new Formula(struct);
+				struct.elems[1] = new Formula(struct);
+				if (struct.type == StructType.Infer)
+					struct.elems[2] = new Formula(struct);
+
+				if (this.activeIndex > 0 && input == "/")
+				{
+					struct.elems[0].insert(0,
+						this.activeFormula.tokens[this.activeIndex - 1]);
+					this.activeFormula.remove(this.activeIndex - 1);
+					this.activeFormula = struct.elems[1];
+				}
+				else
+					this.activeFormula = struct.elems[input == "infer" ? 1 : 0];
+
+				ac.insert(this.activeIndex, struct);
+				this.activeIndex = 0;
+				break;
+			case "^":
+				struct = new Structure(this.activeFormula, StructType.Power);
+				struct.elems[0] = new Formula(struct);
+				this.activeFormula = struct.elems[0];
+
+				ac.insert(this.activeIndex, struct);
+				this.activeIndex = 0;
+				break;
+			case "(":
+			case "[":
+			case "{":
+				var f = new Formula(this.activeFormula, input, close[input]);
+				this.activeFormula = f;
+				ac.insert(this.activeIndex, f);
+				this.activeIndex = 0;
+				break;
+			default:
+				this.activeFormula.insert(this.activeIndex,
+					new Symbol(input in this.keywords ? this.keywords[input] : input));
+				this.activeIndex++;
+				break;
+		}
+
+		this.currentInput = "";
+		this.inputType = InputType.Empty;
+	}
 	private pushSymbols(): void
 	{
 		var t: Token;
@@ -522,44 +530,6 @@ class Greeter
 
 		return t;
 	}
-	private tryParse(s: string): Token
-	{
-		var t: Token = null;
-
-		if (!(this.symbols.some(word => word == s) || s in this.keywords))
-			return null;
-
-		var struct: Structure;
-		switch (s)
-		{
-			case "infer":
-			case "/":
-			case "frac":
-				struct = new Structure(this.activeFormula, s == "infer" ? StructType.Infer : StructType.Frac);
-				struct.elems[0] = new Formula(struct);
-				struct.elems[1] = new Formula(struct);
-				if (struct.type == StructType.Infer)
-					struct.elems[2] = new Formula(struct);
-				t = struct;
-				break;
-			case "^":
-				struct = new Structure(this.activeFormula, StructType.Power);
-				struct.elems[0] = new Formula(struct);
-				t = struct;
-				break;
-			case "(":
-				t = new Formula(this.activeFormula, "(", ")");
-				break;
-			case "[":
-				t = new Formula(this.activeFormula, "[", "]");
-				break;
-			default:
-				t = new Symbol(s in this.keywords ? this.keywords[s] : s);
-				break;
-		}
-
-		return t;
-	}
 	public outputToken(q: JQuery, t: Token): void
 	{
 		if (t instanceof Symbol)
@@ -579,12 +549,10 @@ class Greeter
 		}
 		else if (t instanceof Structure)
 		{
-			this._elog("output Structure " + (<Structure>t).type);
 			this.outputStruct(q, <Structure>t);
 		}
 		else if (t instanceof Formula)
 		{
-			this._elog("output Formula " + (<Formula>t).tokens.length);
 			var f = <Formula>t;
 
 			if (f.prefix != "")
