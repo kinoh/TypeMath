@@ -127,29 +127,31 @@ class Greeter
 
 		if (this.type == InputType.Empty)
 		{
-			if (t == InputType.Number)
-				this.receiveNumber(key);
-			else
-				this.receiveSymbol(key);
+			this.currentInput += key;
+			this.type = t;
 		}
+		else if (key == " ")
+			this.receiveSymbol();
 		else if (this.type == InputType.Number)
 		{
 			if (t == this.type || key == ".")
-				this.receiveNumber(key);
+				this.currentInput += key;
 			else
 			{
 				this.pushNumber();
-				this.receiveSymbol(key);
+				this.type = t;
+				this.currentInput += key;
 			}
 		}
 		else
 		{
 			if (t == this.type)
-				this.receiveSymbol(key);
+				this.currentInput += key;
 			else
 			{
-				this.receiveSymbol(" ");
-				this.receiveNumber(key);
+				this.receiveSymbol();
+				this.type = InputType.Number;
+				this.currentInput += key;
 			}
 		}
 
@@ -268,7 +270,7 @@ class Greeter
 				return;
 			}
 			else
-				this.receiveSymbol(" ");
+				this.receiveSymbol();
 		}
 
 		var dif = toLeft ? -1 : 1;
@@ -349,46 +351,33 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	public receiveNumber(key: string): void
+	public receiveSymbol(): void
 	{
-		this.type = InputType.Number;
-		this.currentInput += key;
-	}
-	public receiveSymbol(key: string): void
-	{
-		if (key == " ")
-		{
-			var t: Token = null;
-			var input = this.currentInput + (key == " " ? "" : key);
+		var t: Token = null;
+		var input = this.currentInput;
 
-			if (this.currentInput == "")
+		if (this.currentInput == "")
+		{
+			if (this.activeFormula.parent instanceof Structure)
 			{
-				if (this.activeFormula.parent instanceof Structure)
+				var s = <Structure>this.activeFormula.parent;
+				if (s.type == StructType.Infer)
 				{
-					var s = <Structure>this.activeFormula.parent;
-					if (s.type == StructType.Infer)
-					{
-						t = new Symbol("&");	// should be a new kind of Token?
-					}
+					t = new Symbol("&");	// should be a new kind of Token?
 				}
 			}
-
-			if (t == null && (input.length > 1 || this.getInputType(input) != InputType.String))
-				t = this.tryParse(input);
-
-			if (t == null)
-				this.pushSymbols();
-			else
-				this.insertToken(t);
-
-			this.currentInput = "";
-			this.type = InputType.Empty;
 		}
+
+		if (t == null && (input.length > 1 || this.getInputType(input) != InputType.String))
+			t = this.tryParse(input);
+
+		if (t == null)
+			this.pushSymbols();
 		else
-		{
-			this.currentInput += key;
-			this.type = InputType.String;
-		}
+			this.insertToken(t);
+
+		this.currentInput = "";
+		this.type = InputType.Empty;
 	}
 	private insertToken(t: Token): void
 	{
