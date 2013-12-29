@@ -61,7 +61,7 @@ class LaTeX
 				case StructType.Infer:
 					var opt = LaTeX.trans(s.token(2));
 					return LaTeX.macroBreaked("infer" + (opt != "" ? "[" + opt + "]" : ""),
-						indent, s.token(1), s.token(0));
+						indent, s.token(0), s.token(1));
 				case StructType.Power:
 					str = LaTeX.trans(s.token(0));
 					return str.length == 1

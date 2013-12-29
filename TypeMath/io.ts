@@ -1,6 +1,6 @@
 ﻿enum ControlKey
 {
-	Left, Right, Up, Down, Backspace, Delete, Tab, Enter, Shift
+	Space, Left, Right, Up, Down, Backspace, Delete, Tab, Enter, Shift
 }
 
 class IO
@@ -14,7 +14,7 @@ class IO
 		this.keyMapNormal = {
 			189: '-', 222: '^', 220: '¥', 192: '@', 219: '[',	/* Opera, Chrome, Safari */
 			187: ';', 186: ':', 221: ']', 188: ',', 190: '.',
-			191: '/', 226: '\\', 32: ' ',
+			191: '/', 226: '\\',
 			160: '^',  64: '@',  59: ';',  58: ':'				/* Firefox */
 		};
         this.keyMapShifted = {
@@ -22,7 +22,7 @@ class IO
 			 54: '&',  55: "'",  56: '(',  57: ')', 173: '=',
 			189: '~', 220: '|', 192: '`', 219: '{', 187: '+',
 			186: '*', 221: '}', 188: '<', 190: '>', 191: '?',
-			226: '_',  32: ' ',
+			226: '_',
 			160: '~',  64: '`',  59: '+',  58: '*'
 		};
     }
@@ -57,6 +57,7 @@ class IO
 			case 9: return ControlKey.Tab;
 			case 13: return ControlKey.Enter;
 			case 16: return ControlKey.Shift;
+			case 32: return ControlKey.Space;
 			case 37: return ControlKey.Left;
 			case 38: return ControlKey.Up;
 			case 39: return ControlKey.Right;

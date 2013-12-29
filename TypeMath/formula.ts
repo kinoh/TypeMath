@@ -112,7 +112,7 @@ class Structure /* TokenSeq */
 	public next = (f: Formula) => /* override */
 	{
 		var i = this.elems.indexOf(f);
-		if (i != 0)
+		if (i < 0 || i == this.elemCount - 1)
 			return null;
 		return this.elems[i + 1];
 	}

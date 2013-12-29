@@ -141,24 +141,7 @@ class Greeter
 		this.markedIndex = -1;
 		var t = this.getInputType(key);
 
-		if (key == " ")
-		{
-			if (this.currentInput == "")
-			{
-				if (this.activeFormula.parent instanceof Structure
-					&& (<Structure> this.activeFormula.parent).type == StructType.Infer)
-				{
-					this.inputType = InputType.String;
-					this.currentInput = "&";
-					this.interpretSymbol();
-				}
-				else
-					this.moveHorizontal(false);
-			}
-			else
-				this.interpretSymbol();
-		}
-		else if (this.inputType == InputType.Empty)
+		if (this.inputType == InputType.Empty)
 		{
 			this.currentInput += key;
 			this.inputType = t;
@@ -210,6 +193,12 @@ class Greeter
 				break;
 			case ControlKey.Enter:
 				this.decideCandidate();
+				break;
+			case ControlKey.Space:
+				if (this.currentInput == "")
+					this.moveNext();
+				else
+					this.interpretSymbol();
 				break;
 			case ControlKey.Left:
 			case ControlKey.Right:
@@ -293,6 +282,34 @@ class Greeter
 		}
 
 		this.render();
+	}
+	public moveNext(): void
+	{
+		if (this.activeFormula.parent instanceof Structure)
+		{
+			var p = <Structure> this.activeFormula.parent;
+			if (p.type == StructType.Infer
+				&& p.elems[1] == this.activeFormula)
+			{
+				this.inputType = InputType.String;
+				this.currentInput = "&";
+				this.interpretSymbol();
+			}
+			else
+			{
+				var next: Formula;
+				if (this.activeIndex == this.activeFormula.count()
+					&& (next = p.next(this.activeFormula)) != null)
+				{
+					this.activeFormula = next;
+					this.activeIndex = 0;
+				}
+				else
+					this.moveHorizontal(false);
+			}
+		}
+		else
+			this.moveHorizontal(false);
 	}
 	public moveHorizontal(toLeft: boolean): void
 	{
@@ -487,7 +504,7 @@ class Greeter
 					this.activeFormula = struct.elems[1];
 				}
 				else
-					this.activeFormula = struct.elems[input == "infer" ? 1 : 0];
+					this.activeFormula = struct.elems[0];
 
 				ac.insert(this.activeIndex, struct);
 				this.activeIndex = 0;
@@ -633,18 +650,22 @@ class Greeter
 				var a2 = $("<div/>").addClass(cls + " infered");
 				tag.append(a1);
 				tag.append(a2);
-
-				this.outputToken(a1, s.token(0));
-				this.outputToken(a2, s.token(1));
-
 				q.append(tag);
 
 				if (s.type == StructType.Infer)
 				{
 					var a3 = $("<div/>").addClass("math label");
-					q.append(a3);
+					this.outputToken(a1, s.token(1));
+					this.outputToken(a2, s.token(0));
 					this.outputToken(a3, s.token(2));
+					q.append(a3);
 				}
+				else
+				{
+					this.outputToken(a1, s.token(0));
+					this.outputToken(a2, s.token(1));
+				}
+
 				break;
 
 			case StructType.Power:
