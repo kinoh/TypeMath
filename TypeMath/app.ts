@@ -449,7 +449,7 @@ class Greeter
 
 		if (key.length == 0 || cand.length == 0)
 		{
-			this.candy.hide();
+			this.candy.css("visibility", "hidden");
 			this.candIndex = -1;
 			return;
 		}
@@ -458,13 +458,12 @@ class Greeter
 		{
 			var ofs = this.active.offset();
 
+			this.candIndex = 0;
 			this.candy.css({
+				"visibility": "visible",
 				"left": ofs.left,
 				"top": ofs.top + this.active.height()
 			});
-			this.candIndex = 0;
-
-			this.candy.show();
 		}
 
 		this.candy.empty();
