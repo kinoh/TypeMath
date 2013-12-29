@@ -31,7 +31,7 @@ class Greeter
 	public candCount = 0;
 	public candSelected: string;
 	public currentInput = "";
-	public type = InputType.Empty;
+	public inputType = InputType.Empty;
 	public clipboard: Token[] = null;
 
 	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -125,32 +125,37 @@ class Greeter
 		this.markedIndex = -1;
 		var t = this.getInputType(key);
 
-		if (this.type == InputType.Empty)
+		if (key == " ")
+		{
+			if (this.currentInput == "")
+				this.moveHorizontal(false);
+			else
+				this.receiveSymbol();
+		}
+		else if (this.inputType == InputType.Empty)
 		{
 			this.currentInput += key;
-			this.type = t;
+			this.inputType = t;
 		}
-		else if (key == " ")
-			this.receiveSymbol();
-		else if (this.type == InputType.Number)
+		else if (this.inputType == InputType.Number)
 		{
-			if (t == this.type || key == ".")
+			if (t == this.inputType || key == ".")
 				this.currentInput += key;
 			else
 			{
 				this.pushNumber();
-				this.type = t;
+				this.inputType = t;
 				this.currentInput += key;
 			}
 		}
 		else
 		{
-			if (t == this.type)
+			if (t == this.inputType)
 				this.currentInput += key;
 			else
 			{
 				this.receiveSymbol();
-				this.type = InputType.Number;
+				this.inputType = t;
 				this.currentInput += key;
 			}
 		}
@@ -209,6 +214,8 @@ class Greeter
 				if (this.currentInput != "")
 				{
 					this.currentInput = this.currentInput.slice(0, -1);
+					if (this.currentInput == "")
+						this.inputType = InputType.Empty;
 				}
 				else if (this.activeFormula.count() > 0)
 				{
@@ -377,7 +384,7 @@ class Greeter
 			this.insertToken(t);
 
 		this.currentInput = "";
-		this.type = InputType.Empty;
+		this.inputType = InputType.Empty;
 	}
 	private insertToken(t: Token): void
 	{
@@ -432,7 +439,7 @@ class Greeter
 		var t = this.tryParse(this.candSelected);
 		this.insertToken(t);
 		this.currentInput = "";
-		this.type = InputType.Empty;
+		this.inputType = InputType.Empty;
 	}
 	public showCandidate(): void
 	{
@@ -486,7 +493,7 @@ class Greeter
 		}
 
 		this.currentInput = "";
-		this.type = InputType.Empty;
+		this.inputType = InputType.Empty;
 	}
 	private pushSymbols(): void
 	{
@@ -500,7 +507,7 @@ class Greeter
 		}
 
 		this.currentInput = "";
-		this.type = InputType.Empty;
+		this.inputType = InputType.Empty;
 	}
 	private tryParseNumber(s: string): Token
 	{
