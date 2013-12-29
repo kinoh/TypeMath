@@ -20,6 +20,7 @@ class Greeter
 	public candy: JQuery;
 	private io = new IO();
 	private _log: JQuery;
+	private _status: JQuery;
 	private _logText = "";
 	private _enableLog = false;
 
@@ -29,14 +30,14 @@ class Greeter
 	public markedIndex = -1;
 	public candIndex = -1;
 	public candCount = 0;
-	public candSelected: string;
+	public candSelected: string = "";
 	public currentInput = "";
 	public inputType = InputType.Empty;
-	public clipboard: Token[] = null;
+	public clipboard: Token[] = [];
 
 	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	symbols: string[] = [
-		"+", "-", "*", "/", "^", "<=", ">=", "(", ")", "[", "]", "{", "}"
+		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}"
 	];
 
 	keywords: { [key: string]: string } = {
@@ -76,6 +77,7 @@ class Greeter
 		});
 		proof.change();
 
+		$(document.body).append(this._status = $("<pre/>").css("font-size", "9pt"));
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
 		this.render();
@@ -106,6 +108,20 @@ class Greeter
 		this.latex.text(LaTeX.trans(this.formula));
 
 		this._elog("rendering end;");
+
+		this._status.text([
+			"formula       = " + this.formula.toString(),
+			"activeFormula = " + this.activeFormula.toString(),
+			"activeIndex   = " + this.activeIndex.toString(),
+			"markedIndex   = " + this.markedIndex.toString(),
+			"candIndex     = " + this.candIndex.toString(),
+			"candCount     = " + this.candCount.toString(),
+			"candSelected  = " + this.candSelected.toString(),
+			"currentInput  = " + this.currentInput.toString(),
+			"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
+			this.inputType == InputType.Number ? "Number" :
+			this.inputType == InputType.String ? "String" : "Symbol"),
+			"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
 	public processInput(e: KeyboardEvent): void
 	{
@@ -477,7 +493,9 @@ class Greeter
 				this.activeIndex = 0;
 				break;
 			case "^":
-				struct = new Structure(this.activeFormula, StructType.Power);
+			case "_":
+				struct = new Structure(this.activeFormula,
+					input == "^" ? StructType.Power : StructType.Index);
 				struct.elems[0] = new Formula(struct);
 				this.activeFormula = struct.elems[0];
 
@@ -630,7 +648,8 @@ class Greeter
 				break;
 
 			case StructType.Power:
-				tag = $("<div/>").addClass("power");
+			case StructType.Index:
+				tag = $("<div/>").addClass(s.type == StructType.Power ? "power" : "index");
 				var p = $("<div/>").addClass("math");
 				tag.append(p);
 

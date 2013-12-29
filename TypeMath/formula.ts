@@ -135,6 +135,8 @@ class Structure /* TokenSeq */
 		{
 			case StructType.Frac: type = "Frac"; break;
 			case StructType.Infer: type = "Infer"; break;
+			case StructType.Power: type = "Power"; break;
+			case StructType.Index: type = "Index"; break;
 		}
 
 		return type + "[" + this.elems.map(f => f.toString()).join(", ") + "]";

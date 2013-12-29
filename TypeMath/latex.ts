@@ -51,7 +51,9 @@ class LaTeX
 		}
 		else if (t instanceof Structure)
 		{
-            var s = <Structure>t;
+			var s = <Structure>t;
+			var str: string;
+
             switch (s.type)
             {
                 case StructType.Frac:
@@ -60,8 +62,16 @@ class LaTeX
 					var opt = LaTeX.trans(s.token(2));
 					return LaTeX.macroBreaked("infer" + (opt != "" ? "[" + opt + "]" : ""),
 						indent, s.token(1), s.token(0));
-                case StructType.Power:
-                    return "^{ " + LaTeX.trans(s.token(0)) + " }";
+				case StructType.Power:
+					str = LaTeX.trans(s.token(0));
+					return str.length == 1
+						? "^" + str
+						: "^{ " + str + " }";
+				case StructType.Index:
+					str = LaTeX.trans(s.token(0));
+					return str.length == 1
+						? "_" + str
+						: "_{ " + str + " }";
             }
 		}
 		else if (t instanceof Formula)
