@@ -40,13 +40,13 @@ class LaTeX
             switch (s.type)
             {
                 case StructType.Frac:
-                    return LaTeX.macro("frac", s.tokens[0], s.tokens[1]);
+                    return LaTeX.macro("frac", s.token(0), s.token(1));
 				case StructType.Infer:
-					var opt = LaTeX.trans(s.tokens[2]);
+					var opt = LaTeX.trans(s.token(2));
 					return LaTeX.macroBreaked("infer" + (opt != "" ? "[" + opt + "]" : ""),
-						indent, s.tokens[1], s.tokens[0]);
+						indent, s.token(1), s.token(0));
                 case StructType.Power:
-                    return "^{ " + LaTeX.trans(s.tokens[0]) + " }";
+                    return "^{ " + LaTeX.trans(s.token(0)) + " }";
             }
 		}
 		else if (t instanceof Formula)

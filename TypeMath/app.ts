@@ -20,6 +20,7 @@ class Greeter
 	public candy: JQuery;
 	private io = new IO();
 	private _log: JQuery;
+	private _logText = "";
 	private _enableLog = false;
 
 	public formula = new Formula(null);
@@ -87,11 +88,21 @@ class Greeter
 	}
 	public render(): void
 	{
+		this._elog("rendering begin;");
+
 		this.field.empty();
 		this.outputToken(this.field, this.formula);
+
+		this._elog("outputToken finished");
+
 		this.active.text(this.currentInput);
 		this.showCandidate();
+
+		this._elog("showCandidate finished");
+
 		this.latex.text(LaTeX.trans(this.formula));
+
+		this._elog("rendering end;");
 	}
 	public processInput(e: KeyboardEvent): void
 	{
@@ -194,7 +205,7 @@ class Greeter
 				{
 					this.currentInput = this.currentInput.slice(0, -1);
 				}
-				else if (this.activeFormula.count > 0)
+				else if (this.activeFormula.count() > 0)
 				{
 					this.activeFormula.remove(this.activeIndex - 1);
 					this.activeIndex--;
@@ -260,17 +271,17 @@ class Greeter
 		var dif = toLeft ? -1 : 1;
 
 		if (this.activeIndex + dif >= 0
-			&& this.activeIndex + dif <= this.activeFormula.count)
+			&& this.activeIndex + dif <= this.activeFormula.count())
 		{
 			var dest = this.activeFormula.tokens[this.activeIndex + (toLeft ? -1 : 0)];
-			if (this.markedIndex < 0 && dest instanceof TokenSeq)
+			if (this.markedIndex < 0 && (dest instanceof Structure || dest instanceof Formula))
 			{
 				if (dest instanceof Structure)
-					this.activeFormula = <Formula>(<Structure>dest).tokens[0];
+					this.activeFormula = <Formula>(<Structure> dest).token(0);
 				else
-					this.activeFormula = <Formula>(<TokenSeq>dest);
+					this.activeFormula = <Formula> dest;
 
-				this.activeIndex = toLeft ? this.activeFormula.count : 0;
+				this.activeIndex = toLeft ? this.activeFormula.count() : 0;
 			}
 			else
 				this.activeIndex += dif;
@@ -295,9 +306,9 @@ class Greeter
 			var s = <Structure>p;
 			if (this.markedIndex < 0
 				&& s.type == StructType.Infer && !toLeft
-				&& s.tokens.indexOf(this.activeFormula) < 2)
+				&& s.elems.indexOf(this.activeFormula) < 2)
 			{
-				this.activeFormula = <Formula>s.tokens[2];
+				this.activeFormula = <Formula>s.token(2);
 				this.activeIndex = 0;
 			}
 			else
@@ -322,7 +333,7 @@ class Greeter
 			if (p instanceof Structure)
 			{
 				var s = <Structure>p;
-				var neig = (toUpper ? s.prev : s.next)(ac);
+				var neig = (toUpper ? s.prev : s.next)(<Formula> ac);
 
 				if (neig != null)
 				{
@@ -393,21 +404,21 @@ class Greeter
 			{
 				if (this.activeIndex > 0 && this.currentInput == "/")
 				{
-					(<Formula>s.tokens[0]).insert(0,
+					(<Formula>s.token(0)).insert(0,
 						this.activeFormula.tokens[this.activeIndex - 1]);
 					this.activeFormula.remove(this.activeIndex - 1);
-					this.activeFormula = <Formula>s.tokens[1];
+					this.activeFormula = <Formula>s.token(1);
 				}
 				else
-					this.activeFormula = <Formula>s.tokens[0];
+					this.activeFormula = <Formula>s.token(0);
 			}
 			else if (s.type == StructType.Infer)
 			{
-				this.activeFormula = <Formula>s.tokens[1];
+				this.activeFormula = <Formula>s.token(1);
 			}
 			else if (s.type == StructType.Power)
 			{
-				this.activeFormula = <Formula>s.tokens[0];
+				this.activeFormula = <Formula>s.token(0);
 			}
 			ac.insert(this.activeIndex, t);
 			this.activeIndex = 0;
@@ -528,15 +539,15 @@ class Greeter
 			case "/":
 			case "frac":
 				struct = new Structure(this.activeFormula, s == "infer" ? StructType.Infer : StructType.Frac);
-				struct.tokens[0] = new Formula(struct);
-				struct.tokens[1] = new Formula(struct);
+				struct.elems[0] = new Formula(struct);
+				struct.elems[1] = new Formula(struct);
 				if (struct.type == StructType.Infer)
-					struct.tokens[2] = new Formula(struct);
+					struct.elems[2] = new Formula(struct);
 				t = struct;
 				break;
 			case "^":
 				struct = new Structure(this.activeFormula, StructType.Power);
-				struct.tokens[0] = new Formula(struct);
+				struct.elems[0] = new Formula(struct);
 				t = struct;
 				break;
 			case "(":
@@ -559,26 +570,24 @@ class Greeter
 			var str = (<Symbol>t).ident;
 			if (str == "&")
 				str = Unicode.EmSpace;
-			this._elog("output Symbol: " + (<Symbol>t).ident);
 			q.append($("<div/>")
 				.addClass("symbol")
 				.text(str));
 		}
 		else if (t instanceof Num)
 		{
-			this._elog("output Num: " + (<Num>t).value.toString());
 			q.append($("<div/>")
 				.addClass("symbol")
 				.text((<Num>t).value.toString()));
 		}
 		else if (t instanceof Structure)
 		{
-			this._elog("output Structure");
+			this._elog("output Structure " + (<Structure>t).type);
 			this.outputStruct(q, <Structure>t);
 		}
 		else if (t instanceof Formula)
 		{
-			this._elog("output Formula");
+			this._elog("output Formula " + (<Formula>t).tokens.length);
 			var f = <Formula>t;
 
 			if (f.prefix != "")
@@ -590,13 +599,12 @@ class Greeter
 				var markedFrom = Math.min(this.markedIndex, this.activeIndex);
 				var markedTo = Math.max(this.markedIndex, this.activeIndex);
 				var marked = false;
-				for (var i = 0, j = 0; i <= f.count; i++)
+				for (var i = 0, j = 0; i <= f.count(); i++)
 				{
 					if (i == this.activeIndex)
 					{
 						this.active = $("<div/>").addClass("active");
 						q.append(this.active);
-						this._elog("curret rendered");
 					}
 					if (this.markedIndex >= 0)
 					{
@@ -609,17 +617,15 @@ class Greeter
 						if (j == markedTo)
 							marked = false;
 					}
-					if (j == f.count)
+					if (j == f.count())
 						break;
-					this._elog("output formulaA" + (j + 1) + "/" + f.tokens.length);
 
 					this.outputToken(marked ? r : q, f.tokens[j++]);
 				}
 			}
 			else if (f.tokens.length > 0)
-				f.tokens.map((s, i) =>
+				f.tokens.forEach(s =>
 				{
-					this._elog("output formula " + i);
 					this.outputToken(q, s);
 				});
 			else
@@ -645,8 +651,8 @@ class Greeter
 				tag.append(a1);
 				tag.append(a2);
 
-				this.outputToken(a1, s.tokens[0]);
-				this.outputToken(a2, s.tokens[1]);
+				this.outputToken(a1, s.token(0));
+				this.outputToken(a2, s.token(1));
 
 				q.append(tag);
 
@@ -654,7 +660,7 @@ class Greeter
 				{
 					var a3 = $("<div/>").addClass("math label");
 					q.append(a3);
-					this.outputToken(a3, s.tokens[2]);
+					this.outputToken(a3, s.token(2));
 				}
 				break;
 
@@ -663,7 +669,7 @@ class Greeter
 				var p = $("<div/>").addClass("math");
 				tag.append(p);
 
-				this.outputToken(p, s.tokens[0]);
+				this.outputToken(p, s.token(0));
 
 				q.append(tag);
 				break;
@@ -671,9 +677,13 @@ class Greeter
 	}
 	private _elog(msg: string): void
 	{
+		if (this._logText.length == 40000)
+			alert("too long log text!");
+		this._logText = msg + "\n" + this._logText;
+
 		if (this._enableLog)
 		{
-			this._log.append(msg + "\n");
+			this._log.text(this._logText);
 			window.scrollTo(0, 0);
 		}
 	}
