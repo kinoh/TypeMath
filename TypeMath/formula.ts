@@ -1,16 +1,25 @@
-﻿interface Token
+﻿class Token
 {
-	//parent: Token;
+	renderedElem: JQuery = null;
 
-	clone(parent: TokenSeq): Token;
+	constructor()
+	{
+	}
+
+	clone(parent: TokenSeq): Token
+	{
+		alert("clone method not implemented");
+		return null;
+	}
 }
 
-class Symbol
+class Symbol extends Token
 {
 	ident: string;
 
 	public constructor(s: string)
 	{
+		super();
 		this.ident = s;
 	}
 
@@ -25,12 +34,13 @@ class Symbol
 	}
 }
 
-class Num
+class Num extends Token
 {
 	value: number;
 
 	public constructor(n: number)
 	{
+		super();
 		this.value = n;
 	}
 
@@ -61,7 +71,7 @@ enum StructType
 	BigOpr
 }
 
-class Structure /* TokenSeq */
+class Structure extends Token /* TokenSeq */
 {
 	parent: TokenSeq;
 	type: StructType;
@@ -70,6 +80,7 @@ class Structure /* TokenSeq */
 
 	public constructor(parent: TokenSeq, type: StructType)
 	{
+		super();
 		this.parent = parent;
 		this.type = type;
 
@@ -143,7 +154,7 @@ class Structure /* TokenSeq */
 	}
 }
 
-class Formula /* TokenSeq */
+class Formula extends Token /* TokenSeq */
 {
 	parent: TokenSeq;
 	tokens: Token[] = [];
@@ -152,6 +163,7 @@ class Formula /* TokenSeq */
 
 	public constructor(parent: TokenSeq, prefix?: string, suffix?: string)
 	{
+		super();
 		this.parent = parent;
 		if (prefix !== undefined)
 			this.prefix = prefix;

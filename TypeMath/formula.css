@@ -19,11 +19,6 @@
 	border: solid 1px #99f;
 }
 
-.field
-{
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-}
-
 .formula
 {
 	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;

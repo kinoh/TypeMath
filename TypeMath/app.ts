@@ -34,6 +34,7 @@ class Greeter
 	public currentInput = "";
 	public inputType = InputType.Empty;
 	public clipboard: Token[] = [];
+	public proofMode: boolean;
 
 	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	symbols: string[] = [
@@ -62,18 +63,7 @@ class Greeter
 		document.onkeydown = (e) => { this.processInput(e) };
 		proof.change(e =>
 		{
-			if (proof.prop("checked"))
-			{
-				this.field.removeClass("math");
-				this.field.addClass("formula");
-				LaTeX.proofMode = true;
-			}
-			else
-			{
-				this.field.removeClass("formula");
-				this.field.addClass("math");
-				LaTeX.proofMode = false;
-			}
+			this.proofMode = proof.prop("checked");
 		});
 		proof.change();
 
@@ -105,7 +95,7 @@ class Greeter
 
 		this._elog("showCandidate finished");
 
-		this.latex.text(LaTeX.trans(this.formula));
+		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
 
 		this._elog("rendering end;");
 
@@ -394,7 +384,21 @@ class Greeter
 				if (neig != null)
 				{
 					this.activeFormula = <Formula>neig;
-					this.activeIndex = 0;
+
+					var rect = this.active[0].getBoundingClientRect();
+					var x0 = (rect.left + rect.right) / 2;
+					var a : number[] = [];
+					for (var i = 0; i < neig.tokens.length; i++)
+					{
+						var r = neig.tokens[i].renderedElem[0].getBoundingClientRect();
+						if (i == 0)
+							a.push(r.left);
+						a.push(r.right);
+					}
+					this.activeIndex = (a.length == 0) ? 0
+						: a.map((x, i) => ({ d: Math.abs(x - x0), index: i }))
+							.reduce((prev, curr) => (curr.d < prev.d) ? curr : prev).index;
+
 					return;
 				}
 			}
@@ -565,120 +569,129 @@ class Greeter
 
 		return t;
 	}
-	public outputToken(q: JQuery, t: Token): void
+	public outputToken(q: JQuery, t: Token): JQuery
 	{
+		var e: JQuery;
+
 		if (t instanceof Symbol)
 		{
 			var str = (<Symbol>t).ident;
 			if (str == "&")
 				str = Unicode.EmSpace;
-			q.append($("<div/>")
+			e = $("<div/>")
 				.addClass("symbol")
-				.text(str));
+				.text(str);
+			q.append(e);
 		}
 		else if (t instanceof Num)
 		{
-			q.append($("<div/>")
+			e = $("<div/>")
 				.addClass("symbol")
-				.text((<Num>t).value.toString()));
+				.text((<Num>t).value.toString());
+			q.append(e);
 		}
 		else if (t instanceof Structure)
 		{
-			this.outputStruct(q, <Structure>t);
+			var s = <Structure> t;
+			e = this.outputStruct(s);
+			q.append(e);
+			if (s.type == StructType.Infer)
+			{
+				var a3 = $("<div/>").addClass("math label");
+				this.outputToken(a3, s.token(2));
+				q.append(a3);
+			}
 		}
 		else if (t instanceof Formula)
 		{
-			var f = <Formula>t;
-
-			if (f.prefix != "")
-				q.append($("<div/>").addClass("brace").text(f.prefix));
-
-			if (f == this.activeFormula)
-			{
-				var r: JQuery;
-				var markedFrom = Math.min(this.markedIndex, this.activeIndex);
-				var markedTo = Math.max(this.markedIndex, this.activeIndex);
-				var marked = false;
-				for (var i = 0, j = 0; i <= f.count(); i++)
-				{
-					if (i == this.activeIndex)
-					{
-						this.active = $("<div/>").addClass("active");
-						q.append(this.active);
-					}
-					if (this.markedIndex >= 0)
-					{
-						if (j == markedFrom)
-						{
-							r = $("<div/>").addClass("math marked");
-							q.append(r);
-							marked = true;
-						}
-						if (j == markedTo)
-							marked = false;
-					}
-					if (j == f.count())
-						break;
-
-					this.outputToken(marked ? r : q, f.tokens[j++]);
-				}
-			}
-			else if (f.tokens.length > 0)
-				f.tokens.forEach(s =>
-				{
-					this.outputToken(q, s);
-				});
-			else
-				q.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
-
-			if (f.suffix != "")
-				q.append($("<div/>").addClass("brace").text(f.suffix));
+			var f = <Formula> t;
+			e = this.outputFormula(f);
+			q.append(e);
 		}
 		else
 			alert("Unexpected Argument (outputToken)\n" + t);
+
+		t.renderedElem = e;
+
+		return e;
 	}
-	public outputStruct(q: JQuery, s: Structure): void
+	public outputStruct(s: Structure): JQuery
 	{
-		var tag: JQuery;
+		var e: JQuery;
+
 		switch (s.type)
 		{
 			case StructType.Frac:
 			case StructType.Infer:
 				var cls = s.type == StructType.Frac ? "math" : "formula";
-				tag = $("<div/>").addClass("frac");
-				var a1 = $("<div/>").addClass(cls);
-				var a2 = $("<div/>").addClass(cls + " infered");
-				tag.append(a1);
-				tag.append(a2);
-				q.append(tag);
+				e = $("<div/>").addClass("frac");
 
-				if (s.type == StructType.Infer)
-				{
-					var a3 = $("<div/>").addClass("math label");
-					this.outputToken(a1, s.token(1));
-					this.outputToken(a2, s.token(0));
-					this.outputToken(a3, s.token(2));
-					q.append(a3);
-				}
-				else
-				{
-					this.outputToken(a1, s.token(0));
-					this.outputToken(a2, s.token(1));
-				}
+				var upper = s.token(s.type != StructType.Infer ? 0 : 1);
+				var lower = s.token(s.type != StructType.Infer ? 1 : 0);
+
+				this.outputToken(e, upper);
+				this.outputToken(e, lower).addClass("infered");
 
 				break;
 
 			case StructType.Power:
 			case StructType.Index:
-				tag = $("<div/>").addClass(s.type == StructType.Power ? "power" : "index");
-				var p = $("<div/>").addClass("math");
-				tag.append(p);
-
-				this.outputToken(p, s.token(0));
-
-				q.append(tag);
+				e = $("<div/>").addClass(s.type == StructType.Power ? "power" : "index");
+				this.outputToken(e, s.token(0));
 				break;
 		}
+
+		return e;
+	}
+	public outputFormula(f: Formula): JQuery
+	{
+		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
+
+		if (f.prefix != "")
+			e.append($("<div/>").addClass("brace").text(f.prefix));
+
+		if (f == this.activeFormula)
+		{
+			var r: JQuery;
+			var markedFrom = Math.min(this.markedIndex, this.activeIndex);
+			var markedTo = Math.max(this.markedIndex, this.activeIndex);
+			var marked = false;
+			for (var i = 0, j = 0; i <= f.count(); i++)
+			{
+				if (i == this.activeIndex)
+				{
+					this.active = $("<div/>").addClass("active");
+					e.append(this.active);
+				}
+				if (this.markedIndex >= 0)
+				{
+					if (j == markedFrom)
+					{
+						r = $("<div/>").addClass("math marked");
+						e.append(r);
+						marked = true;
+					}
+					if (j == markedTo)
+						marked = false;
+				}
+				if (j == f.count())
+					break;
+
+				this.outputToken(marked ? r : e, f.tokens[j++]);
+			}
+		}
+		else if (f.tokens.length > 0)
+			f.tokens.forEach(s =>
+			{
+				this.outputToken(e, s);
+			});
+		else
+			e.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
+
+		if (f.suffix != "")
+			e.append($("<div/>").addClass("brace").text(f.suffix));
+
+		return e;
 	}
 	private _elog(msg: string): void
 	{

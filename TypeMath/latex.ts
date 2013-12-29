@@ -2,7 +2,7 @@
 
 class LaTeX
 {
-	public static proofMode = false;
+	private static proofMode = false;
 
     public static macro(n: string, ...args: Token[]): string
     {
@@ -17,8 +17,10 @@ class LaTeX
 			+ indent + "}";
 	}
 
-    public static trans(t: Token, indent?: string): string
+    public static trans(t: Token, indent?: string, proof?: boolean): string
 	{
+		if (proof != undefined)
+			this.proofMode = proof;
 		if (indent == undefined)
 			indent = "";
 
