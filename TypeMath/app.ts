@@ -91,7 +91,7 @@ class Greeter
 
 		this._elog("outputToken finished");
 
-		this.active.text(this.currentInput);
+		this.active.text(this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace);
 		this.showCandidate();
 
 		this._elog("showCandidate finished");

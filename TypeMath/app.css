@@ -45,8 +45,7 @@
 .active
 {
 	border: solid 1px #fcc;
-	min-height: 1.5em;
-	min-width: 0.2em;
+	margin: 0.1em;
 }
 
 .curret
