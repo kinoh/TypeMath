@@ -49,6 +49,21 @@
 	font-size: smaller;
 }
 
+.matrix
+{
+	display: table;
+}
+.matrix .row
+{
+	display: table-row;
+}
+.matrix .cell
+{
+	display: table-cell;
+	padding-left: 0.1em;
+	padding-right: 0.1em;
+}
+
 .active
 {
 	

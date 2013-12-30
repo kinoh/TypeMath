@@ -60,6 +60,8 @@ interface TokenSeq
 	parent: any;
 	count(): number;
 	token(i: number): Token;
+	next(t: Token): any;
+	prev(t: Token): any;
 }
 
 enum StructType
@@ -68,6 +70,7 @@ enum StructType
 	Frac,
 	Power,
 	Index,
+	Matrix,
 	BigOpr
 }
 
@@ -75,7 +78,6 @@ class Structure extends Token /* TokenSeq */
 {
 	parent: TokenSeq;
 	type: StructType;
-	elemCount: number;
 	elems: Formula[];
 
 	public constructor(parent: TokenSeq, type: StructType)
@@ -84,32 +86,36 @@ class Structure extends Token /* TokenSeq */
 		this.parent = parent;
 		this.type = type;
 
+		var count: number;
+
 		switch (type)
 		{
 			case StructType.Infer:
-				this.elemCount = 3;
+				count = 3;
 				break;
 			case StructType.Frac:
 			case StructType.BigOpr:
-				this.elemCount = 2;
+				count = 2;
 				break;
 			case StructType.Power:
 			case StructType.Index:
-				this.elemCount = 1;
+				count = 1;
 				break;
+			default:
+				return;
 		}
 
-		this.elems = new Array(this.elemCount);
-		for (var i = 0; i < this.elemCount; i++)
+		this.elems = new Array(count);
+		for (var i = 0; i < count; i++)
 			this.elems[i] = new Formula(<TokenSeq> this);
 	}
 	public count(): number
 	{
-		return this.elemCount;
+		return this.elems.length;
 	}
 	public token(i: number): Token
 	{
-		if (i < 0 || i >= this.elemCount)
+		if (i < 0 || i >= this.elems.length)
 			alert("Structure.token : out of range " + i);
 		return this.elems[i];
 	}
@@ -120,10 +126,10 @@ class Structure extends Token /* TokenSeq */
 			return null;
 		return this.elems[i - 1];
 	}
-	public next = (f: Formula) => /* override */
+	public next = (f: Formula) =>
 	{
 		var i = this.elems.indexOf(f);
-		if (i < 0 || i == this.elemCount - 1)
+		if (i < 0 || i == this.elems.length - 1)
 			return null;
 		return this.elems[i + 1];
 	}
@@ -151,6 +157,104 @@ class Structure extends Token /* TokenSeq */
 		}
 
 		return type + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
+	}
+}
+
+class Matrix extends Structure
+{
+	rows: number;
+	cols: number;
+
+	constructor(parent: TokenSeq, rows: number, cols: number)
+	{
+		super(parent, StructType.Matrix);
+
+		this.rows = rows;
+		this.cols = cols;
+		this.elems = new Array(rows * cols);
+
+		for (var i = 0; i < this.elems.length; i++)
+			this.elems[i] = new Formula(this);
+	}
+
+	public tokenAt(r: number, c: number): Formula
+	{
+		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols)
+			alert("Matrix.token : out of range " + r + "," + c);
+		return this.elems[r * this.cols + c];
+	}
+
+	public clone(parent: TokenSeq): Matrix
+	{
+		var m = new Matrix(parent, this.rows, this.cols);
+		this.elems.forEach((f, i) =>
+		{
+			m.elems[i] = f.clone(m);
+		});
+		return m;
+	}
+
+	public extend = (horizontal: boolean): void =>
+	{
+		if (horizontal)
+		{
+			for (var i = 1; i <= this.rows; i++)
+				this.elems.splice(this.cols * i, 0, new Formula(this));
+			this.cols++;
+		}
+		else
+		{
+			for (var i = 0; i < this.cols; i++)
+				this.elems.push(new Formula(this));
+			this.rows++;
+		}
+	}
+	public shrink = (horizontal: boolean): void =>
+	{
+		if (horizontal)
+		{
+			if (this.cols == 1)
+				return;
+			for (var i = 1; i <= this.cols; i++)
+				this.elems.splice(this.cols * i - 1, 1);
+			this.cols--;
+		}
+		else
+		{
+			if (this.rows == 1)
+				return;
+			this.elems.splice((this.rows - 1) * this.cols, this.cols);
+			this.rows--;
+		}
+	}
+
+	public around = (f: Formula, horizontal: boolean, forward: boolean): Formula =>
+	{
+		var i = this.elems.indexOf(f);
+
+		if (i < 0)
+			return null;
+
+		var r = Math.floor(i / this.cols);
+		var c = i % this.cols;
+
+		if (horizontal)
+		{
+			if (!forward && --c < 0) return null;
+			if (forward && ++c >= this.cols) return null;
+		}
+		else
+		{
+			if (!forward && --r < 0) return null;
+			if (forward && ++r >= this.rows) return null;
+		}
+
+		return this.tokenAt(r, c);
+	}
+
+	public toString(): string
+	{
+		return "Matrix" + this.rows + "," + this.cols + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
 	}
 }
 

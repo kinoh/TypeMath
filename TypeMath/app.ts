@@ -49,7 +49,8 @@ class Greeter
 		"<=": "≤",
 		">=": "≥",
 		"infer": "",
-		"frac": ""
+		"frac": "",
+		"matrix": ""
 	};
 
 	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
@@ -192,29 +193,29 @@ class Greeter
 				break;
 			case ControlKey.Left:
 			case ControlKey.Right:
-				this.moveHorizontal(key == ControlKey.Left);
+				if (e.ctrlKey
+					&& this.activeFormula.parent != null
+					&& this.activeFormula.parent instanceof Matrix)
+				{
+					var m = <Matrix> this.activeFormula.parent;
+					(key == ControlKey.Right ? m.extend : m.shrink)(true);
+				}
+				else
+					this.moveHorizontal(key == ControlKey.Right);
 				break;
 			case ControlKey.Up:
-				if (this.currentInput != "")
-				{
-					if (this.candIndex < 0)
-						return;
-					if (--this.candIndex < 0)
-						this.candIndex = this.candCount - 1;
-				}
-				else
-					this.moveVertical(true);
-				break;
 			case ControlKey.Down:
-				if (this.currentInput != "")
+				if (e.ctrlKey
+					&& this.activeFormula.parent != null
+					&& this.activeFormula.parent instanceof Matrix)
 				{
-					if (this.candIndex < 0)
-						return;
-					if (++this.candIndex >= this.candCount)
-						this.candIndex = 0;
+					var m = <Matrix> this.activeFormula.parent;
+					(key == ControlKey.Down ? m.extend : m.shrink)(false);
 				}
+				else if (this.currentInput != "")
+					this.changeCandidate(key == ControlKey.Down);
 				else
-					this.moveVertical(false);
+					this.moveVertical(key == ControlKey.Up);
 				break;
 			case ControlKey.Backspace:
 				if (this.currentInput != "")
@@ -295,17 +296,17 @@ class Greeter
 					this.activeIndex = 0;
 				}
 				else
-					this.moveHorizontal(false);
+					this.moveHorizontal(true);
 			}
 		}
 		else
-			this.moveHorizontal(false);
+			this.moveHorizontal(true);
 	}
-	public moveHorizontal(toLeft: boolean): void
+	public moveHorizontal(toRight: boolean): void
 	{
 		if (this.currentInput != "")
 		{
-			if (toLeft)
+			if (!toRight)
 			{
 				this.currentInput = this.currentInput.slice(0, -1);
 				return;
@@ -314,20 +315,25 @@ class Greeter
 				this.interpretSymbol();
 		}
 
-		var dif = toLeft ? -1 : 1;
+		var dif = toRight ? 1 : -1;
 
 		if (this.activeIndex + dif >= 0
 			&& this.activeIndex + dif <= this.activeFormula.count())
 		{
-			var dest = this.activeFormula.tokens[this.activeIndex + (toLeft ? -1 : 0)];
+			var dest = this.activeFormula.tokens[this.activeIndex + (toRight ? 0 : -1)];
 			if (this.markedIndex < 0 && (dest instanceof Structure || dest instanceof Formula))
 			{
-				if (dest instanceof Structure)
+				if (dest instanceof Matrix)
+				{
+					var m = <Matrix> dest;
+					this.activeFormula = m.tokenAt(0, toRight ? 0 : m.cols - 1);
+				}
+				else if (dest instanceof Structure)
 					this.activeFormula = <Formula>(<Structure> dest).token(0);
 				else
 					this.activeFormula = <Formula> dest;
 
-				this.activeIndex = toLeft ? this.activeFormula.count() : 0;
+				this.activeIndex = toRight ? 0 : this.activeFormula.count();
 			}
 			else
 				this.activeIndex += dif;
@@ -342,17 +348,30 @@ class Greeter
 		else if (p instanceof Formula)
 		{
 			var f = <Formula>p;
-			this.activeIndex = f.tokens.indexOf(this.activeFormula) + (toLeft ? 0 : 1);
+			this.activeIndex = f.tokens.indexOf(this.activeFormula) + (toRight ? 1 : 0);
 			if (this.markedIndex >= 0)
-				this.markedIndex = this.activeIndex + (toLeft ? 1 : -1);
+				this.markedIndex = this.activeIndex + dif;
 			this.activeFormula = f;
 		}
 		else if (p instanceof Structure)
 		{
-			var s = <Structure>p;
+			var s = <Structure> p;
+
+			if (s.type == StructType.Matrix)
+			{
+				var m = <Matrix> s;
+				var a = m.around(this.activeFormula, true, toRight);
+				if (a != null)
+				{
+					this.activeFormula = a;
+					this.activeIndex = toRight ? 0 : this.activeFormula.count();
+					return;
+				}
+			}
+
 			if (this.markedIndex < 0
-				&& s.type == StructType.Infer && !toLeft
-				&& s.elems.indexOf(this.activeFormula) < 2)
+				&& s.type == StructType.Infer && toRight
+				&& s.elems.indexOf(this.activeFormula) < 2)	// label of infer
 			{
 				this.activeFormula = <Formula>s.token(2);
 				this.activeIndex = 0;
@@ -360,9 +379,9 @@ class Greeter
 			else
 			{
 				var f = <Formula>(s.parent);
-				this.activeIndex = f.tokens.indexOf(s) + (toLeft ? 0 : 1);
+				this.activeIndex = f.tokens.indexOf(s) + (toRight ? 1 : 0);
 				if (this.markedIndex >= 0)
-					this.markedIndex = this.activeIndex + (toLeft ? 1 : -1);
+					this.markedIndex = this.activeIndex + dif;
 				this.activeFormula = f;
 			}
 		}
@@ -379,7 +398,13 @@ class Greeter
 			if (p instanceof Structure)
 			{
 				var s = <Structure>p;
-				var neig = (toUpper ? s.prev : s.next)(<Formula> ac);
+				var neig: Formula;
+				if (s.type == StructType.Infer)
+					neig = (toUpper ? s.next : s.prev)(<Formula> ac);
+				else if (s.type == StructType.Matrix)
+					neig = (<Matrix> s).around(<Formula> ac, false, !toUpper);
+				else
+					neig = (toUpper ? s.prev : s.next)(<Formula> ac);
 
 				if (neig != null)
 				{
@@ -416,6 +441,16 @@ class Greeter
 			this.pushCommand();
 		else
 			this.pushSymbols();
+	}
+	private changeCandidate(next: boolean): void
+	{
+		if (this.candIndex < 0)
+			return;
+
+		if (next && ++this.candIndex >= this.candCount)
+			this.candIndex = 0;
+		if (!next && --this.candIndex < 0)
+			this.candIndex = this.candCount - 1;
 	}
 	private decideCandidate(): void
 	{
@@ -520,6 +555,13 @@ class Greeter
 				struct.elems[0] = new Formula(struct);
 				this.activeFormula = struct.elems[0];
 
+				ac.insert(this.activeIndex, struct);
+				this.activeIndex = 0;
+				break;
+			case "matrix":
+				struct = new Matrix(this.activeFormula, 1, 1);
+				struct.elems[0] = new Formula(struct);
+				this.activeFormula = struct.elems[0];
 				ac.insert(this.activeIndex, struct);
 				this.activeIndex = 0;
 				break;
@@ -638,6 +680,22 @@ class Greeter
 			case StructType.Index:
 				e = $("<div/>").addClass(s.type == StructType.Power ? "power" : "index");
 				this.outputToken(e, s.token(0));
+				break;
+
+			case StructType.Matrix:
+				var m = <Matrix> s;
+				e = $("<div/>").addClass("matrix");
+				for (var i = 0; i < m.rows; i++)
+				{
+					var r = $("<div/>").addClass("row");
+					for (var j = 0; j < m.cols; j++)
+					{
+						var c = $("<div/>").addClass("cell");
+						this.outputToken(c, m.tokenAt(i, j));
+						r.append(c);
+					}
+					e.append(r);
+				}
 				break;
 		}
 

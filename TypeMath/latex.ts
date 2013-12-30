@@ -51,6 +51,24 @@ class LaTeX
 		{
 			return (<Num>t).value.toString();
 		}
+		else if (t instanceof Matrix)
+		{
+			var m = <Matrix> t;
+			var ln = (m.rows >= 2 && m.cols >= 2 && !(m.rows == 2 && m.cols == 2))
+				? "\n" : " ";
+			var str = "";
+
+			for (var i = 0; i < m.rows; i++)
+			{
+				str += m.elems.slice(m.cols * i, m.cols * (i + 1))
+						.map(f => LaTeX.trans(f)).join(" & ")
+					+ " \\\\" + ln;
+			}
+
+			return "\\begin{array}{" + new Array(m.cols).map(() => "c") + "}" + ln
+				+ str
+				+ "\\end{array}";
+		}
 		else if (t instanceof Structure)
 		{
 			var s = <Structure>t;
@@ -74,6 +92,8 @@ class LaTeX
 					return str.length == 1
 						? "_" + str
 						: "_{ " + str + " }";
+				default:
+					return "?struct?";
             }
 		}
 		else if (t instanceof Formula)
