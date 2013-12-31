@@ -166,7 +166,7 @@ class Greeter
 				this.currentInput += key;
 			else
 			{
-				this.interpretSymbol();
+				this.interpretInput();
 				this.inputType = t;
 				this.currentInput += key;
 			}
@@ -201,7 +201,7 @@ class Greeter
 				if (this.currentInput == "")
 					this.moveNext();
 				else
-					this.interpretSymbol();
+					this.interpretInput();
 				break;
 			case ControlKey.Left:
 			case ControlKey.Right:
@@ -296,7 +296,7 @@ class Greeter
 			{
 				this.inputType = InputType.String;
 				this.currentInput = "&";
-				this.interpretSymbol();
+				this.interpretInput();
 			}
 			else
 			{
@@ -324,7 +324,7 @@ class Greeter
 				return;
 			}
 			else
-				this.interpretSymbol();
+				this.interpretInput();
 		}
 
 		var dif = toRight ? 1 : -1;
@@ -443,12 +443,15 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	public interpretSymbol(): void
+	public interpretInput(): void
 	{
 		var t: Token = null;
 		var input = this.currentInput;
 
-		if (!(input.length == 1 && this.getInputType(input) == InputType.String)		// single character will not interpreted (unless, you cannot input "P"!)
+		if (this.inputType == InputType.Number)
+			this.pushNumber();
+		// single character will not interpreted (unless, you cannot input "P"!)
+		else if (!(input.length == 1 && this.getInputType(input) == InputType.String)
 			&& (this.symbols.some(word => word == input) || input in this.keywords))
 			this.pushCommand();
 		else
@@ -473,7 +476,7 @@ class Greeter
 		}
 
 		this.currentInput = this.candSelected;
-		this.interpretSymbol();
+		this.interpretInput();
 	}
 	public showCandidate(): void
 	{
@@ -640,7 +643,7 @@ class Greeter
 		else if (t instanceof Num)
 		{
 			e = $("<div/>")
-				.addClass("symbol")
+				.addClass("number")
 				.text((<Num>t).value.toString());
 			q.append(e);
 		}

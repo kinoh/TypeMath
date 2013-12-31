@@ -19,7 +19,7 @@
 {
 	background-repeat: no-repeat;
 	background-position: center;
-	background-size: 95% 80%;
+	background-size: 95% 95%;
 	width: 0.8em;
 }
 
@@ -30,6 +30,13 @@
 }
 
 .symbol
+{
+	margin: 0.1em;
+	border: solid 1px #99f;
+	font-style: italic;
+}
+
+.number
 {
 	margin: 0.1em;
 	border: solid 1px #99f;
@@ -83,11 +90,6 @@
 .active
 {
 	
-}
-
-.brace
-{
-	border: solid 1px #9f9;
 }
 
 .blank

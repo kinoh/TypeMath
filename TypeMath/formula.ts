@@ -198,7 +198,7 @@ class Matrix extends Structure
 	{
 		if (horizontal)
 		{
-			for (var i = 1; i <= this.rows; i++)
+			for (var i = this.rows; i >= 1; i--)
 				this.elems.splice(this.cols * i, 0, new Formula(this));
 			this.cols++;
 		}
@@ -215,7 +215,7 @@ class Matrix extends Structure
 		{
 			if (this.cols == 1)
 				return;
-			for (var i = 1; i <= this.cols; i++)
+			for (var i = this.cols; i >= 1; i--)
 				this.elems.splice(this.cols * i - 1, 1);
 			this.cols--;
 		}
@@ -333,6 +333,8 @@ class Formula extends Token /* TokenSeq */
 	public clone(parent: TokenSeq): Formula
 	{
 		var s = new Formula(parent);
+		s.prefix = this.prefix;
+		s.suffix = this.suffix;
 		this.tokens.forEach((t, i) =>
 		{
 			s.tokens[i] = t.clone(s);

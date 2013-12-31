@@ -147,8 +147,8 @@ class Glyph
         this.data["("] = new Path(24, 64,
             new Bezier(20, 4, 20, 60, 4, 2, 4, 62, 0, 0, 4));
         this.data["{"] = new Path(24, 64,
-            new Bezier(20, 4, 4, 32, 2, 2, 16, 32, 0, 0, 4),
-            new Bezier(4, 32, 20, 60, 16, 32, 2, 62, 0, 0, 4));
+            new Bezier(20, 4, 4, 32, 2, 2, 16, 32, 0, 0, 5),
+            new Bezier(4, 32, 20, 60, 16, 32, 2, 62, 0, 0, 5));
         this.data["["] = new Path(24, 64,
             new Line(16, 4, 8, 4, 1),
             new Line(8, 4, 8, 60, 3),
