@@ -205,7 +205,15 @@ class Greeter
 				break;
 			case ControlKey.Space:
 				if (this.currentInput == "")
-					this.moveNext();
+				{
+					if (e.shiftKey)
+					{
+						this.markedIndex = -1;
+						this.movePrev();
+					}
+					else
+						this.moveNext();
+				}
 				else
 					this.interpretInput();
 				break;
@@ -292,6 +300,25 @@ class Greeter
 
 		this.render();
 	}
+	public movePrev(): void
+	{
+		if (this.activeFormula.parent instanceof Structure)
+		{
+			var p = <Structure> this.activeFormula.parent;
+			var prev: Formula;
+
+			if (this.activeIndex == 0
+				&& (prev = p.prev(this.activeFormula)) != null)
+			{
+				this.activeFormula = prev;
+				this.activeIndex = prev.count();
+			}
+			else
+				this.moveHorizontal(false);
+		}
+		else
+			this.moveHorizontal(false);
+	}
 	public moveNext(): void
 	{
 		if (this.activeFormula.parent instanceof Structure)
@@ -341,13 +368,11 @@ class Greeter
 			var dest = this.activeFormula.tokens[this.activeIndex + (toRight ? 0 : -1)];
 			if (this.markedIndex < 0 && (dest instanceof Structure || dest instanceof Formula))
 			{
-				if (dest instanceof Matrix)
+				if (dest instanceof Structure)
 				{
-					var m = <Matrix> dest;
-					this.activeFormula = m.tokenAt(0, toRight ? 0 : m.cols - 1);
+					var s = <Structure> dest;
+					this.activeFormula = <Formula> s.token(toRight ? 0 : s.elems.length - 1);
 				}
-				else if (dest instanceof Structure)
-					this.activeFormula = <Formula>(<Structure> dest).token(0);
 				else
 					this.activeFormula = <Formula> dest;
 
