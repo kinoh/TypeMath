@@ -15,22 +15,24 @@
 
 class Symbol extends Token
 {
-	ident: string;
+	str: string;
+	variable: boolean;	// italic
 
-	public constructor(s: string)
+	public constructor(str: string, variable: boolean)
 	{
 		super();
-		this.ident = s;
+		this.str = str;
+		this.variable = variable;
 	}
 
 	public clone(parent: TokenSeq): Symbol
 	{
-		return new Symbol(this.ident);
+		return new Symbol(this.str, this.variable);
 	}
 
 	public toString(): string
 	{
-		return this.ident;
+		return this.str;
 	}
 }
 

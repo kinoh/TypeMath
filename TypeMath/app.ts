@@ -40,7 +40,7 @@ class Greeter
 
 	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	symbols: string[] = [
-		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}"
+		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}", "|"
 	];
 
 	keywords: { [key: string]: string } = {
@@ -52,8 +52,13 @@ class Greeter
 		">=": "≥",
 		"infer": "",
 		"frac": "",
-		"matrix": ""
+		"matrix": "",
+		"(": "",
+		"[": "",
+		"|": ""
 	};
+
+	bracketCor = { "(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖" };
 
 	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
@@ -192,7 +197,8 @@ class Greeter
 		switch (key)
 		{
 			case ControlKey.Tab:
-				this.currentInput = this.candSelected;
+				if (this.candIndex >= 0)
+					this.currentInput = this.candSelected;
 				break;
 			case ControlKey.Enter:
 				this.decideCandidate();
@@ -443,7 +449,7 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	public interpretInput(): void
+	public interpretInput(forceTrans?: boolean): void
 	{
 		var t: Token = null;
 		var input = this.currentInput;
@@ -451,7 +457,8 @@ class Greeter
 		if (this.inputType == InputType.Number)
 			this.pushNumber();
 		// single character will not interpreted (unless, you cannot input "P"!)
-		else if (!(input.length == 1 && this.getInputType(input) == InputType.String)
+		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
+		else if ((forceTrans != undefined && forceTrans || input.length > 1 && input != "Vert")
 			&& (this.symbols.some(word => word == input) || input in this.keywords))
 			this.pushCommand();
 		else
@@ -476,7 +483,7 @@ class Greeter
 		}
 
 		this.currentInput = this.candSelected;
-		this.interpretInput();
+		this.interpretInput(true);
 	}
 	public showCandidate(): void
 	{
@@ -533,7 +540,6 @@ class Greeter
 	}
 	private pushCommand(): void
 	{
-		var close = { "(": ")", "{": "}", "[": "]", "|": "|" };
 		var input = this.currentInput;
 		var struct: Structure;
 		var ac = this.activeFormula;
@@ -583,14 +589,19 @@ class Greeter
 			case "(":
 			case "[":
 			case "{":
-				var f = new Formula(this.activeFormula, input, close[input]);
+			case "|":
+			case "Vert":
+				var br = (input == "Vert" ? "‖" : input);
+				var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
 				this.activeFormula = f;
 				ac.insert(this.activeIndex, f);
 				this.activeIndex = 0;
 				break;
 			default:
-				this.activeFormula.insert(this.activeIndex,
-					new Symbol(input in this.keywords ? this.keywords[input] : input));
+				var s = (input in this.keywords)
+					? new Symbol(this.keywords[input], false)
+					: new Symbol(input, this.inputType == InputType.String);
+				this.activeFormula.insert(this.activeIndex, s);
 				this.activeIndex++;
 				break;
 		}
@@ -600,14 +611,25 @@ class Greeter
 	}
 	private pushSymbols(): void
 	{
-		var t: Token;
+		var t: Symbol;
+		var input = this.currentInput;
 
-		for (var i = 0; i < this.currentInput.length; i++)
+		if (input == "")
+			return;
+
+		if (input == "Vert")
+			input = "‖";
+
+		for (var i = 0; i < input.length; i++)
 		{
-			t = new Symbol(this.currentInput.charAt(i));
+			var c = input.charAt(i);
+			t = new Symbol(c, this.inputType == InputType.String);
 			this.activeFormula.insert(this.activeIndex, t);
 			this.activeIndex++;
 		}
+
+		if (t.str in this.bracketCor)
+			this.activeFormula.insert(this.activeIndex + 1, new Symbol(this.bracketCor[t.str], false));
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
@@ -632,12 +654,12 @@ class Greeter
 
 		if (t instanceof Symbol)
 		{
-			var str = (<Symbol>t).ident;
-			if (str == "&")
-				str = Unicode.EmSpace;
+			var v = <Symbol> t;
+			if (v.str == "&")
+				v.str = Unicode.EmSpace;
 			e = $("<div/>")
-				.addClass("symbol")
-				.text(str);
+				.addClass(!this.proofMode && v.variable ? "variable" : "symbol")
+				.text(v.str);
 			q.append(e);
 		}
 		else if (t instanceof Num)

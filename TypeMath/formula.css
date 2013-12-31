@@ -29,11 +29,17 @@
 	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical; -o-box-orient: vertical; -ms-box-orient: vertical;
 }
 
-.symbol
+.variable
 {
 	margin: 0.1em;
 	border: solid 1px #99f;
 	font-style: italic;
+}
+
+.symbol
+{
+	margin: 0.1em;
+	border: solid 1px #99f;
 }
 
 .number
