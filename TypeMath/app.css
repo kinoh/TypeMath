@@ -47,6 +47,10 @@
 	border: solid 1px #fcc;
 	margin: 0.05em;
 }
+.activeStyled
+{
+	background-color: #fd9;
+}
 
 .curret
 {

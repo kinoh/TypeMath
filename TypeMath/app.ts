@@ -13,6 +13,17 @@ enum InputType
 	String
 }
 
+enum InputStyle
+{
+	Normal,
+	Bold,
+	Roman,
+	Script,
+	Fraktur,
+	BlackBoard,
+	Typewriter
+}
+
 class Greeter
 {
 	private field: JQuery;
@@ -35,6 +46,7 @@ class Greeter
 	public candSelected: string = "";
 	public currentInput = "";
 	public inputType = InputType.Empty;
+	public inputStyle = InputStyle.Normal;
 	public clipboard: Token[] = [];
 
 	public proofMode: boolean;
@@ -57,7 +69,13 @@ class Greeter
 		"matrix": "",
 		"(": "",
 		"[": "",
-		"|": ""
+		"|": "",
+		"mathbf": "",
+		"mathbb": "",
+		"mathrm": "",
+		"mathtt": "",
+		"mathscr": "",
+		"mathfrak": ""
 	};
 
 	bracketCor = { "(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖" };
@@ -131,6 +149,11 @@ class Greeter
 			"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
 			this.inputType == InputType.Number ? "Number" :
 			this.inputType == InputType.String ? "String" : "Symbol"),
+			"inputStyle    = " + (this.inputStyle == InputStyle.Normal ? "Normal" :
+			this.inputStyle == InputStyle.Bold ? "Bold" :
+			this.inputStyle == InputStyle.Roman ? "Roman" :
+			this.inputStyle == InputStyle.Script ? "Script" :
+			this.inputStyle == InputStyle.BlackBoard ? "BlackBoard" : "Typerwriter"),
 			"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
 	public processInput(e: KeyboardEvent): void
@@ -580,12 +603,14 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
+		this.inputStyle = InputStyle.Normal;
 	}
 	private pushCommand(): void
 	{
 		var input = this.currentInput;
 		var struct: Structure;
 		var ac = this.activeFormula;
+		var style = InputStyle.Normal;
 
 		switch (input)
 		{
@@ -640,6 +665,12 @@ class Greeter
 				ac.insert(this.activeIndex, f);
 				this.activeIndex = 0;
 				break;
+			case "mathbf": style = InputStyle.Bold; break;
+			case "mathrm": style = InputStyle.Roman; break;
+			case "mathscr": style = InputStyle.Script; break;
+			case "mathfrak": style = InputStyle.Fraktur; break;
+			case "mathbb": style = InputStyle.BlackBoard; break;
+			case "mathtt": style = InputStyle.Typewriter; break;
 			default:
 				var s = (input in this.keywords)
 					? new Symbol(this.keywords[input], false)
@@ -651,22 +682,45 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
+		this.inputStyle = style;
 	}
 	private pushSymbols(): void
 	{
 		var t: Symbol;
-		var input = this.currentInput;
+		var input: string[];
 
-		if (input == "")
-			return;
+		if (this.currentInput == "Vert")
+			input = ["‖"];
+		else
+		{
+			if (this.currentInput == "")
+				return;
+			input = this.currentInput.split("");
+		}
 
-		if (input == "Vert")
-			input = "‖";
+		var table: { [key: string]: string } = null;
+		switch (this.inputStyle)
+		{
+			case InputStyle.Bold:
+				table = Unicode.Bold; break;
+			case InputStyle.Script:
+				table = Unicode.Script; break;
+			case InputStyle.Fraktur:
+				table = Unicode.Fraktur; break;
+			case InputStyle.BlackBoard:
+				table = Unicode.DoubleStruck; break;
+			case InputStyle.Typewriter:
+				table = Unicode.Monospace; break;
+		}
+		if (table != null)
+			input = input.map(c => (c in table ? table[c] : c));
 
 		for (var i = 0; i < input.length; i++)
 		{
-			var c = input.charAt(i);
-			t = new Symbol(c, this.inputType == InputType.String);
+			var c = input[i];
+
+			t = new Symbol(c, this.inputType == InputType.String
+				&& (this.inputStyle == InputStyle.Normal || this.inputStyle == InputStyle.Bold));
 			this.activeFormula.insert(this.activeIndex, t);
 			this.activeIndex++;
 		}
@@ -676,6 +730,7 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
+		this.inputStyle = InputStyle.Normal;
 	}
 	private tryParseNumber(s: string): Token
 	{
@@ -827,6 +882,8 @@ class Greeter
 				if (i == this.activeIndex)
 				{
 					this.active = $("<div/>").addClass("active");
+					if (this.inputStyle != InputStyle.Normal)
+						this.active.addClass("activeStyled");
 					e.append(this.active);
 				}
 				if (this.markedIndex >= 0)
