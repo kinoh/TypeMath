@@ -3,6 +3,7 @@
 /// <reference path="formula.ts" />
 /// <reference path="latex.ts" />
 /// <reference path="unicode.ts" />
+/// <reference path="glyph.ts" />
 
 enum InputType
 {
@@ -19,6 +20,7 @@ class Greeter
 	public latex: JQuery;
 	public candy: JQuery;
 	private io = new IO();
+	private glyph;
 	private _log: JQuery;
 	private _status: JQuery;
 	private _logText = "";
@@ -72,6 +74,16 @@ class Greeter
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
 		this.render();
+
+		var canvas = $("<canvas/>")
+			.prop({
+				"width": 24,
+				"height": 64
+			})
+			.addClass("hiddenWorks")
+			.css("border", "solid 1px #000");
+		$(document.body).append(canvas);
+		this.glyph = new Glyph(<HTMLCanvasElement> canvas[0]);
 	}
 	public enrichKeywords(): void
 	{
@@ -703,10 +715,38 @@ class Greeter
 	}
 	public outputFormula(f: Formula): JQuery
 	{
-		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
+		if (f.prefix != "" || f.suffix != "")
+		{
+			var braced = $("<div/>").addClass("embraced");
 
-		if (f.prefix != "")
-			e.append($("<div/>").addClass("brace").text(f.prefix));
+			if (f.prefix != "")
+				braced.append(this.makeBracket(f.prefix));
+
+			braced.append(this.outputFormulaInner(f));
+
+			if (f.suffix != "")
+				braced.append(this.makeBracket(f.suffix));
+
+			return braced;
+		}
+		else
+			return this.outputFormulaInner(f);
+	}
+	private makeBracket(char: string): JQuery
+	{
+		var q = $("<div/>").addClass("bracket");
+		var dat = this.glyph.generate(char);
+
+		if (dat != "")
+			q = q.css("background-image", "url(" + dat + ")");
+		else
+			q = q.text(char);
+
+		return q;
+	}
+	public outputFormulaInner(f: Formula): JQuery
+	{
+		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
 
 		if (f == this.activeFormula)
 		{
@@ -745,9 +785,6 @@ class Greeter
 			});
 		else
 			e.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
-
-		if (f.suffix != "")
-			e.append($("<div/>").addClass("brace").text(f.suffix));
 
 		return e;
 	}

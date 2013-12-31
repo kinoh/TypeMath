@@ -22,6 +22,7 @@
     <Content Include="dictionary.ts" />
     <Content Include="formula.css" />
     <Content Include="formula.ts" />
+    <Content Include="glyph.ts" />
     <Content Include="io.ts" />
     <Content Include="jquery-1.10.0.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

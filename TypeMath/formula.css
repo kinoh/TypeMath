@@ -7,6 +7,22 @@
 	text-align: center;
 }
 
+.embraced
+{
+	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
+	box-align: strech; -webkit-box-align: strech; -moz-box-align: strech; -o-box-align: strech; -ms-box-align: strech;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -o-box-orient: horizontal; -ms-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -o-box-pack: center; -ms-box-pack: center;
+	text-align: center;
+}
+.bracket
+{
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 95% 80%;
+	width: 0.8em;
+}
+
 .frac
 {
 	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
@@ -71,6 +87,7 @@
 
 .brace
 {
+	border: solid 1px #9f9;
 }
 
 .blank

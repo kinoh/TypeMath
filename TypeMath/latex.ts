@@ -65,7 +65,11 @@ class LaTeX
 					+ " \\\\" + ln;
 			}
 
-			return "\\begin{array}{" + new Array(m.cols).map(() => "c") + "}" + ln
+			var opt = "";
+			for (var i = 0; i < m.cols; i++)
+				opt += "c";
+
+			return "\\begin{array}{" + opt + "}" + ln
 				+ str
 				+ "\\end{array}";
 		}
