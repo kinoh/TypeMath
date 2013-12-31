@@ -1,18 +1,18 @@
 ﻿.math
 {
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-	box-align: center; -webkit-box-align: center; -moz-box-align: center; -o-box-align: center; -ms-box-align: center;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -o-box-orient: horizontal; -ms-box-orient: horizontal;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -o-box-pack: center; -ms-box-pack: center;
+	display: box; display: -moz-box; display: -webkit-box;
+	box-align: center; -moz-box-align: center; -webkit-box-align: center;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
 	text-align: center;
 }
 
 .embraced
 {
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-	box-align: strech; -webkit-box-align: strech; -moz-box-align: strech; -o-box-align: strech; -ms-box-align: strech;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -o-box-orient: horizontal; -ms-box-orient: horizontal;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -o-box-pack: center; -ms-box-pack: center;
+	display: box; display: -moz-box; display: -webkit-box;
+	box-align: stretch; -moz-box-align: stretch; -webkit-box-align: stretch;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
 	text-align: center;
 }
 .bracket
@@ -25,8 +25,8 @@
 
 .frac
 {
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical; -o-box-orient: vertical; -ms-box-orient: vertical;
+	display: box; display: -moz-box; display: -webkit-box;
+	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical;
 }
 
 .variable
@@ -50,10 +50,10 @@
 
 .formula
 {
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-	box-align: end; -webkit-box-align: end; -moz-box-align: end; -o-box-align: end; -ms-box-align: end;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -o-box-orient: horizontal; -ms-box-orient: horizontal;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -o-box-pack: center; -ms-box-pack: center;
+	display: box; display: -moz-box; display: -webkit-box;
+	box-align: end; -moz-box-align: end; -webkit-box-align: end;
+	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
 }
 
 .infered

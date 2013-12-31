@@ -24,8 +24,8 @@
 
 #candy
 {
-	display: box; display: -moz-box; display: -webkit-box; display: -o-box; display: -ms-box;
-	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical; -o-box-orient: vertical; -ms-box-orient: vertical;
+	display: box; display: -moz-box; display: -webkit-box;
+	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical;
 	background-color: #fff;
 	border: solid 1px #000;
 	position: absolute;

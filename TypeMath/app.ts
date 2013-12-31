@@ -36,7 +36,9 @@ class Greeter
 	public currentInput = "";
 	public inputType = InputType.Empty;
 	public clipboard: Token[] = [];
+
 	public proofMode: boolean;
+	public candMax = 16;
 
 	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	symbols: string[] = [
@@ -514,7 +516,9 @@ class Greeter
 	{
 		var key = this.currentInput;
 
-		var cand = Object.keys(this.keywords).filter(w => w.indexOf(key) == 0);
+		var keys = Object.keys(this.keywords);
+		var cand = keys.filter(w => w.indexOf(key) == 0)
+			.concat(keys.filter(w => w.indexOf(key) > 0));
 
 		if (key.length == 0 || cand.length == 0)
 		{
@@ -535,20 +539,34 @@ class Greeter
 			});
 		}
 
+		this.candCount = cand.length;
+
+		var i0 = 0;
+
+		if (cand.length > this.candMax)
+		{
+			i0 = this.candIndex - this.candMax / 2;
+
+			if (i0 < 0)
+				i0 = 0;
+			else if (i0 > this.candCount - this.candMax)
+				i0 = this.candCount - this.candMax;
+
+			cand = cand.slice(i0, i0 + this.candMax);
+		}
+
 		this.candy.empty();
 		cand.forEach((c, i) =>
 		{
 			var glyph = (c in this.keywords ? this.keywords[c] : c);
 			var e = $("<div/>").addClass("candidate").text(c + " " + glyph);
-			if (i == this.candIndex)
+			if (i0 + i == this.candIndex)
 			{
 				e.addClass("candidateSelected");
 				this.candSelected = c;
 			}
 			this.candy.append(e);
 		});
-
-		this.candCount = cand.length;
 	}
 	private pushNumber(): void
 	{
