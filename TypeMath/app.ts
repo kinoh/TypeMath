@@ -508,7 +508,9 @@ class Greeter
 			this.pushNumber();
 		// single character will not interpreted (unless, you cannot input "P"!)
 		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
-		else if ((forceTrans != undefined && forceTrans || input.length > 1 && input != "Vert")
+		else if ((forceTrans != undefined && forceTrans
+				|| input.length > 1 && input != "Vert"
+				|| input.length == 1 && (this.inputType != InputType.Symbol || !(input in this.bracketCor)))
 			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
 			this.pushCommand();
 		else
