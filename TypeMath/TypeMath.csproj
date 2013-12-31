@@ -29,6 +29,7 @@
     </Content>
     <Content Include="jquery.d.ts" />
     <Content Include="latex.ts" />
+    <Content Include="symbolTable.js" />
     <Content Include="unicode.ts" />
     <Content Include="web.config" />
   </ItemGroup>

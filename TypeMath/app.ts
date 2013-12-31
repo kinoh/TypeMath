@@ -484,7 +484,7 @@ class Greeter
 		// single character will not interpreted (unless, you cannot input "P"!)
 		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
 		else if ((forceTrans != undefined && forceTrans || input.length > 1 && input != "Vert")
-			&& (this.symbols.some(word => word == input) || input in this.keywords))
+			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
 			this.pushCommand();
 		else
 			this.pushSymbols();
