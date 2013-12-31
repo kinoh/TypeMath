@@ -13,6 +13,8 @@ class LaTeX
 		"": ""
 	};
 
+	private static styleTable: { [key: string]: { [key: string]: string } } = null;
+
 	public static symbols: { [key: string]: string };
 
     public static macro(n: string, ...args: Token[]): string
@@ -158,6 +160,66 @@ class LaTeX
 		else if (pre != "")
 			suf = " \\right.";
 
-		return pre + f.tokens.map(s => LaTeX.trans(s, indent)).join(" ") + suf;
+		var str: string[] = [];
+
+	main:
+		for (var i = 0; i < f.tokens.length; i++)
+		{
+			var t = f.tokens[i];
+
+			if (t instanceof Symbol)
+			{
+				if (LaTeX.styleTable == null)
+					LaTeX.generateStyleTable();
+
+				var s = <Symbol> t;
+				for (var command in LaTeX.styleTable)
+				{
+					var table = LaTeX.styleTable[command];
+					if (s.str in table)
+					{
+						var u = table[s.str];
+
+						while (i < f.tokens.length
+							&& f.tokens[i + 1] instanceof Symbol
+							&& (s = <Symbol> f.tokens[i + 1]).str in table)
+						{
+							u += table[s.str];
+							i++;
+						}
+
+						str.push("\\" + command + "{" + u + "}");
+
+						continue main;
+					}
+				}
+			}
+
+			str.push(LaTeX.trans(t, indent));
+		}
+
+		return pre + str.join(" ") + suf;
+	}
+	private static generateStyleTable(): void
+	{
+		var cor = {
+			"mathbf": Unicode.Bold,
+			"mathbb": Unicode.DoubleStruck,
+			"mathtt": Unicode.Monospace,
+			"mathscr": Unicode.Script,
+			"mathfrak": Unicode.Fraktur
+			// mathrm
+		};
+
+		LaTeX.styleTable = {};
+
+		for (var command in cor)
+		{
+			var t = cor[command];
+			var r: { [key: string]: string } = {};
+			for (var c in t)
+				r[t[c]] = c;
+			LaTeX.styleTable[command] = r;
+		}
 	}
 }
