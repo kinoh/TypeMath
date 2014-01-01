@@ -74,6 +74,9 @@ class Greeter
 		"(": "(",
 		"[": "[",
 		"|": "|",
+		"floor": "⌊",
+		"ceil": "⌈",
+		"angle": "〈",
 		"sqrt": "√",
 		"mathbf": "",
 		"mathbb": "",
@@ -83,7 +86,8 @@ class Greeter
 		"mathfrak": ""
 	};
 
-	bracketCor = { "(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "√": "" };
+	bracketCor = {
+		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": "" };
 
 	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
@@ -660,6 +664,9 @@ class Greeter
 			case "{":
 			case "|":
 			case "Vert":
+			case "floor":
+			case "ceil":
+			case "angle":
 			case "sqrt":
 				var br = this.keywords[input];
 				var f = new Formula(this.activeFormula, br, this.bracketCor[br]);

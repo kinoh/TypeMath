@@ -150,13 +150,22 @@ class GlyphFactory
             new Bezier(4, 32, 20, 60, 16, 32, 2, 64, 0, 0, 5));
         this.data["["] = new Glyph(24, 64,
             new Line(16, 4, 8, 4, 1),
-            new Line(8, 4, 8, 60, 3),
+            new Line(8, 4, 8, 60, 2.5),
             new Line(8, 60, 16, 60, 1));
         this.data["|"] = new Glyph(24, 64,
-            new Line(12, 4, 12, 60, 3));
+            new Line(12, 4, 12, 60, 2));
         this.data["‖"] = new Glyph(24, 64,
-            new Line(8, 4, 8, 60, 2.5),
-            new Line(16, 4, 16, 60, 2.5));
+            new Line(9, 4, 9, 60, 2),
+            new Line(16, 4, 16, 60, 2));
+		this.data["⌊"] = new Glyph(24, 64,
+			new Line(8, 4, 8, 60, 3),
+			new Line(8, 60, 16, 60, 1));
+		this.data["⌈"] = new Glyph(24, 64,
+			new Line(16, 4, 8, 4, 1),
+			new Line(8, 4, 8, 60, 3));
+		this.data["〈"] = new Glyph(24, 64,
+			new Line(16, 4, 8, 32, 2),
+			new Line(8, 32, 16, 60, 2));
 		this.data["√"] = new Glyph(32, 64,
 			new Line(7, 48, 9, 40, 2),
 			new Line(9, 40, 15, 56, 3),
@@ -164,7 +173,10 @@ class GlyphFactory
 
 		this.data[")"] = this.data["("].reflect();
         this.data["}"] = this.data["{"].reflect();
-        this.data["]"] = this.data["["].reflect();
+		this.data["]"] = this.data["["].reflect();
+		this.data["⌋"] = this.data["⌊"].reflect();
+		this.data["⌉"] = this.data["⌈"].reflect();
+		this.data["〉"] = this.data["〈"].reflect();
     }
 
     public generate(char: string): string
