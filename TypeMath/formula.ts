@@ -306,9 +306,9 @@ class Formula extends Token /* TokenSeq */
 		this.tokens.splice(i, 0, t);
 	}
 
-	public remove(i: number): void
+	public remove(i: number, count?: number): void
 	{
-		this.tokens.splice(i, 1);
+		this.tokens.splice(i, count != undefined ? count : 1);
 	}
 
 	public copy(a: number, b: number): Token[]

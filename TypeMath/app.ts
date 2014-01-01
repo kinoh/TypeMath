@@ -278,13 +278,22 @@ class Greeter
 					if (this.currentInput == "")
 						this.inputType = InputType.Empty;
 				}
-				else if (this.activeFormula.count() > 0)
+				else if (this.markedIndex >= 0)
+				{
+					var i = Math.min(this.markedIndex, this.activeIndex);
+					this.activeFormula.remove(i, Math.abs(this.markedIndex - this.activeIndex));
+					this.markedIndex = -1;
+					this.activeIndex = i;
+				}
+				else if (this.activeIndex > 0)
 				{
 					this.activeFormula.remove(this.activeIndex - 1);
 					this.activeIndex--;
 				}
 				break;
 			case ControlKey.Shift:
+				if (this.activeFormula.count() == 0)
+					break;
 				if (this.markedIndex < 0)
 					this.markedIndex = this.activeIndex;
 				else
@@ -893,7 +902,7 @@ class Greeter
 			var marked = false;
 			for (var i = 0, j = 0; i <= f.count(); i++)
 			{
-				if (i == this.activeIndex)
+				if (i == this.activeIndex && this.markedIndex < 0)
 				{
 					this.active = $("<div/>").addClass("active");
 					if (this.inputStyle != InputStyle.Normal)
