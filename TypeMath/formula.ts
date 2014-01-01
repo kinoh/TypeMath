@@ -260,14 +260,26 @@ class Matrix extends Structure
 	}
 }
 
+enum FontStyle
+{
+	Normal,
+	Bold,
+	Roman,
+	Script,
+	Fraktur,
+	BlackBoard,
+	Typewriter
+}
+
 class Formula extends Token /* TokenSeq */
 {
 	parent: TokenSeq;
 	tokens: Token[] = [];
 	prefix = "";
 	suffix = "";
+	style: FontStyle = FontStyle.Normal;
 
-	public constructor(parent: TokenSeq, prefix?: string, suffix?: string)
+	public constructor(parent: TokenSeq, prefix?: string, suffix?: string, style?: FontStyle)
 	{
 		super();
 		this.parent = parent;
@@ -275,6 +287,8 @@ class Formula extends Token /* TokenSeq */
 			this.prefix = prefix;
 		if (suffix !== undefined)
 			this.suffix = suffix;
+		if (style !== undefined)
+			this.style = style;
 	}
 	public token(i: number): Token
 	{
@@ -337,6 +351,7 @@ class Formula extends Token /* TokenSeq */
 		var s = new Formula(parent);
 		s.prefix = this.prefix;
 		s.suffix = this.suffix;
+		s.style = this.style;
 		this.tokens.forEach((t, i) =>
 		{
 			s.tokens[i] = t.clone(s);

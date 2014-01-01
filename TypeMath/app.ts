@@ -13,17 +13,6 @@ enum InputType
 	String
 }
 
-enum InputStyle
-{
-	Normal,
-	Bold,
-	Roman,
-	Script,
-	Fraktur,
-	BlackBoard,
-	Typewriter
-}
-
 class Greeter
 {
 	private field: JQuery;
@@ -46,8 +35,8 @@ class Greeter
 	public candSelected: string = "";
 	public currentInput = "";
 	public inputType = InputType.Empty;
-	public inputStyle = InputStyle.Normal;
 	public clipboard: Token[] = [];
+	public outputCurrentStyle: FontStyle[];
 
 	public proofMode: boolean;
 	public candMax = 16;
@@ -87,7 +76,8 @@ class Greeter
 	};
 
 	bracketCor = {
-		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": "" };
+		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
+	};
 
 	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
@@ -127,6 +117,7 @@ class Greeter
 		this._elog("rendering begin;");
 
 		this.field.empty();
+		this.outputCurrentStyle = [FontStyle.Normal];
 		this.outputToken(this.field, this.formula);
 
 		this._elog("outputToken finished");
@@ -152,11 +143,6 @@ class Greeter
 			"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
 			this.inputType == InputType.Number ? "Number" :
 			this.inputType == InputType.String ? "String" : "Symbol"),
-			"inputStyle    = " + (this.inputStyle == InputStyle.Normal ? "Normal" :
-			this.inputStyle == InputStyle.Bold ? "Bold" :
-			this.inputStyle == InputStyle.Roman ? "Roman" :
-			this.inputStyle == InputStyle.Script ? "Script" :
-			this.inputStyle == InputStyle.BlackBoard ? "BlackBoard" : "Typerwriter"),
 			"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
 	public processInput(e: KeyboardEvent): void
@@ -620,14 +606,13 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
-		this.inputStyle = InputStyle.Normal;
 	}
 	private pushCommand(): void
 	{
 		var input = this.currentInput;
 		var struct: Structure;
 		var ac = this.activeFormula;
-		var style = InputStyle.Normal;
+		var style = FontStyle.Normal;
 
 		switch (input)
 		{
@@ -686,12 +671,17 @@ class Greeter
 				ac.insert(this.activeIndex, f);
 				this.activeIndex = 0;
 				break;
-			case "mathbf": style = InputStyle.Bold; break;
-			case "mathrm": style = InputStyle.Roman; break;
-			case "mathscr": style = InputStyle.Script; break;
-			case "mathfrak": style = InputStyle.Fraktur; break;
-			case "mathbb": style = InputStyle.BlackBoard; break;
-			case "mathtt": style = InputStyle.Typewriter; break;
+			case "mathbf":
+			case "mathrm":
+			case "mathscr":
+			case "mathfrak":
+			case "mathbb":
+			case "mathtt":
+				var f = new Formula(this.activeFormula, "", "", LaTeX.styles[input]);
+				this.activeFormula = f;
+				ac.insert(this.activeIndex, f);
+				this.activeIndex = 0;				
+				break;
 			default:
 				var s = (input in this.keywords)
 					? new Symbol(this.keywords[input], false)
@@ -703,7 +693,6 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
-		this.inputStyle = style;
 	}
 	private pushSymbols(): void
 	{
@@ -719,29 +708,11 @@ class Greeter
 			input = this.currentInput.split("");
 		}
 
-		var table: { [key: string]: string } = null;
-		switch (this.inputStyle)
-		{
-			case InputStyle.Bold:
-				table = Unicode.Bold; break;
-			case InputStyle.Script:
-				table = Unicode.Script; break;
-			case InputStyle.Fraktur:
-				table = Unicode.Fraktur; break;
-			case InputStyle.BlackBoard:
-				table = Unicode.DoubleStruck; break;
-			case InputStyle.Typewriter:
-				table = Unicode.Monospace; break;
-		}
-		if (table != null)
-			input = input.map(c => (c in table ? table[c] : c));
-
 		for (var i = 0; i < input.length; i++)
 		{
 			var c = input[i];
 
-			t = new Symbol(c, this.inputType == InputType.String
-				&& (this.inputStyle == InputStyle.Normal || this.inputStyle == InputStyle.Bold));
+			t = new Symbol(c, this.inputType == InputType.String);
 			this.activeFormula.insert(this.activeIndex, t);
 			this.activeIndex++;
 		}
@@ -751,7 +722,6 @@ class Greeter
 
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
-		this.inputStyle = InputStyle.Normal;
 	}
 	private tryParseNumber(s: string): Token
 	{
@@ -774,13 +744,26 @@ class Greeter
 		if (t instanceof Symbol)
 		{
 			var v = <Symbol> t;
-			if (v.str == "&")
-				v.str = Unicode.EmSpace;
-			e = $("<div/>")
-				.addClass(!this.proofMode && v.variable ? "variable" : "symbol")
-				.text(v.str);
-			if (this.operators.indexOf(v.str) >= 0)
+			var str = v.str;
+			var style = this.outputCurrentStyle[0];
+			var cls;
+
+			if (style != FontStyle.Normal)
+				str = this.transStyle(str, style);
+			if (str == "&")
+				str = Unicode.EmSpace;
+
+			e = $("<div/>").text(str);
+
+			if (style != FontStyle.Normal)
+				e.addClass("styledLetter");
+			if (!this.proofMode && v.variable && (style == FontStyle.Normal || style == FontStyle.Bold))
+				e.addClass("variable");
+			else
+				e.addClass("symbol");
+			if (this.operators.indexOf(str) >= 0)
 				e.addClass("operator");
+
 			q.append(e);
 		}
 		else if (t instanceof Num)
@@ -814,6 +797,32 @@ class Greeter
 		t.renderedElem = e;
 
 		return e;
+	}
+	private transStyle(str: string, style: FontStyle): string
+	{
+		var table: { [key: string]: string };
+
+		switch (style)
+		{
+			case FontStyle.Bold:		table = Unicode.Bold; break;
+			case FontStyle.Script:		table = Unicode.Script; break;
+			case FontStyle.Fraktur:		table = Unicode.Fraktur; break;
+			case FontStyle.BlackBoard:	table = Unicode.DoubleStruck; break;
+			case FontStyle.Roman:		table = Unicode.SansSerif; break;
+			case FontStyle.Typewriter:	table = Unicode.Monospace; break;
+			default: alert("Unexpected font style : " + style);
+		}
+
+		var r = "";
+
+		for (var i = 0; i < str.length; i++)
+		{
+			var c = str.charAt(i);
+			r += c in table ? table[c] : c;
+		}
+
+		return r;
+
 	}
 	public outputStruct(s: Structure): JQuery
 	{
@@ -861,6 +870,15 @@ class Greeter
 	}
 	public outputFormula(f: Formula): JQuery
 	{
+		var r: JQuery;
+		var shift = false;
+
+		if (f.style != this.outputCurrentStyle[0])
+		{
+			this.outputCurrentStyle.unshift(f.style);
+			shift = true;
+		}
+
 		if (f.prefix != "" || f.suffix != "")
 		{
 			var braced = $("<div/>").addClass("embraced");
@@ -876,10 +894,18 @@ class Greeter
 			if (f.suffix != "")
 				braced.append(this.makeBracket(f.suffix));
 
-			return braced;
+			r = braced;
 		}
 		else
-			return this.outputFormulaInner(f);
+			r = this.outputFormulaInner(f);
+
+		if (shift)
+		{
+			r.addClass("formulaStyled");
+			this.outputCurrentStyle.shift();
+		}
+
+		return r;
 	}
 	private makeBracket(char: string): JQuery
 	{
@@ -908,8 +934,6 @@ class Greeter
 				if (i == this.activeIndex && this.markedIndex < 0)
 				{
 					this.active = $("<div/>").addClass("active");
-					if (this.inputStyle != InputStyle.Normal)
-						this.active.addClass("activeStyled");
 					e.append(this.active);
 				}
 				if (this.markedIndex >= 0)

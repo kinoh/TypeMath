@@ -13,7 +13,14 @@ class LaTeX
 		"": ""
 	};
 
-	private static styleTable: { [key: string]: { [key: string]: string } } = null;
+	public static styles = {
+		"mathbf": FontStyle.Bold,
+		"mathrm": FontStyle.Roman,
+		"mathscr": FontStyle.Script,
+		"mathfrak": FontStyle.Fraktur,
+		"mathbb": FontStyle.BlackBoard,
+		"mathtt": FontStyle.Typewriter
+	};
 
 	public static symbols: { [key: string]: string };
 
@@ -148,9 +155,25 @@ class LaTeX
 			}
 		}
 
+		var separator = " ";
 		var pre, suf: string;
 
-		if (f.prefix == "√")
+		if (f.style != FontStyle.Normal)
+		{
+			var cmd: string;
+
+			for (cmd in this.styles)
+				if (this.styles[cmd] == f.style)
+				{
+					pre = "\\" + cmd + "{";
+					suf = "}";
+					break;
+				}
+
+			if (f.tokens.every(t => t instanceof Symbol || t instanceof Num))
+				separator = "";
+		}
+		else if (f.prefix == "√")
 		{
 			pre = "\\sqrt{ ";
 			suf = " }";
@@ -170,73 +193,6 @@ class LaTeX
 				suf = " \\right.";
 		}
 
-		var str: string[] = [];
-
-	main:
-		for (var i = 0; i < f.tokens.length; i++)
-		{
-			var t = f.tokens[i];
-
-			if (t instanceof Symbol)
-			{
-				var s = <Symbol> t;
-
-				if (s.str in LaTeX.symbols)
-				{
-					str.push(LaTeX.transSymbol(s.str, indent));
-					continue;
-				}
-
-				if (LaTeX.styleTable == null)
-					LaTeX.generateStyleTable();
-
-				for (var command in LaTeX.styleTable)
-				{
-					var table = LaTeX.styleTable[command];
-					if (s.str in table)
-					{
-						var u = table[s.str];
-
-						while (i < f.tokens.length
-							&& f.tokens[i + 1] instanceof Symbol
-							&& (s = <Symbol> f.tokens[i + 1]).str in table)
-						{
-							u += table[s.str];
-							i++;
-						}
-
-						str.push("\\" + command + "{" + u + "}");
-
-						continue main;
-					}
-				}
-			}
-
-			str.push(LaTeX.trans(t, indent));
-		}
-
-		return pre + str.join(" ") + suf;
-	}
-	private static generateStyleTable(): void
-	{
-		var cor = {
-			"mathbf": Unicode.Bold,
-			"mathbb": Unicode.DoubleStruck,
-			"mathtt": Unicode.Monospace,
-			"mathscr": Unicode.Script,
-			"mathfrak": Unicode.Fraktur
-			// mathrm
-		};
-
-		LaTeX.styleTable = {};
-
-		for (var command in cor)
-		{
-			var t = cor[command];
-			var r: { [key: string]: string } = {};
-			for (var c in t)
-				r[t[c]] = c;
-			LaTeX.styleTable[command] = r;
-		}
+		return pre + f.tokens.map(t => LaTeX.trans(t, indent)).join(separator) + suf;
 	}
 }

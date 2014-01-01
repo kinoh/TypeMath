@@ -42,6 +42,12 @@
 	border: solid 1px #99f;
 }
 
+.styledLetter
+{
+	margin: 0.1em 0em;
+	border: none;
+}
+
 .operator
 {
 	font-size: xx-large;
@@ -59,6 +65,12 @@
 	box-align: end; -moz-box-align: end; -webkit-box-align: end;
 	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal;
 	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
+}
+.formulaStyled
+{
+	border: solid 1px #fb6;
+	padding-left: 0.1em;
+	padding-right: 0.1em;
 }
 
 .overline
