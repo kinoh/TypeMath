@@ -557,6 +557,9 @@ class Greeter
 		var cand = keys.filter(w => w.indexOf(key) == 0)
 			.concat(keys.filter(w => w.indexOf(key) > 0));
 
+		if (key == "|")	// for poor key map (such as Firefox's one)
+			cand.splice(1, 0, "_");
+
 		if (key.length == 0 || cand.length == 0)
 		{
 			this.candy.css("visibility", "hidden");

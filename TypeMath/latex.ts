@@ -179,10 +179,17 @@ class LaTeX
 
 			if (t instanceof Symbol)
 			{
+				var s = <Symbol> t;
+
+				if (s.str in LaTeX.symbols)
+				{
+					str.push(LaTeX.transSymbol(s.str, indent));
+					continue;
+				}
+
 				if (LaTeX.styleTable == null)
 					LaTeX.generateStyleTable();
 
-				var s = <Symbol> t;
 				for (var command in LaTeX.styleTable)
 				{
 					var table = LaTeX.styleTable[command];
