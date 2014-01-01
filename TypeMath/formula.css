@@ -19,7 +19,7 @@
 {
 	background-repeat: no-repeat;
 	background-position: center;
-	background-size: 95% 95%;
+	background-size: 100% 100%;
 	width: 0.8em;
 }
 
@@ -56,7 +56,7 @@
 	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center;
 }
 
-.infered
+.overline
 {
 	border-top: solid 1px #000;
 }

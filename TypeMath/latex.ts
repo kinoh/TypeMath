@@ -148,17 +148,27 @@ class LaTeX
 			}
 		}
 
-		var pre = this.transSymbol(f.prefix, indent);
-		var suf = this.transSymbol(f.suffix, indent);
+		var pre, suf: string;
 
-		if (pre != "")
-			pre = "\\left" + pre + " ";
-		else if (suf != "")
-			pre = "\\left. ";
-		if (suf != "")
-			suf = " \\right" + suf;
-		else if (pre != "")
-			suf = " \\right.";
+		if (f.prefix == "√")
+		{
+			pre = "\\sqrt{ ";
+			suf = " }";
+		}
+		else
+		{
+			pre = this.transSymbol(f.prefix, indent);
+			suf = this.transSymbol(f.suffix, indent);
+
+			if (pre != "")
+				pre = "\\left" + pre + " ";
+			else if (suf != "")
+				pre = "\\left. ";
+			if (suf != "")
+				suf = " \\right" + suf;
+			else if (pre != "")
+				suf = " \\right.";
+		}
 
 		var str: string[] = [];
 

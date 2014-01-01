@@ -67,9 +67,10 @@ class Greeter
 		"infer": "",
 		"frac": "",
 		"matrix": "",
-		"(": "",
-		"[": "",
-		"|": "",
+		"(": "(",
+		"[": "[",
+		"|": "|",
+		"sqrt": "√",
 		"mathbf": "",
 		"mathbb": "",
 		"mathrm": "",
@@ -78,7 +79,7 @@ class Greeter
 		"mathfrak": ""
 	};
 
-	bracketCor = { "(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖" };
+	bracketCor = { "(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "√": "" };
 
 	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
@@ -100,15 +101,9 @@ class Greeter
 
 		this.render();
 
-		var canvas = $("<canvas/>")
-			.prop({
-				"width": 24,
-				"height": 64
-			})
-			.addClass("hiddenWorks")
-			.css("border", "solid 1px #000");
+		var canvas = $("<canvas/>").addClass("hiddenWorks");
 		$(document.body).append(canvas);
-		this.glyph = new Glyph(<HTMLCanvasElement> canvas[0]);
+		this.glyph = new GlyphFactory(<HTMLCanvasElement> canvas[0]);
 	}
 	public enrichKeywords(): void
 	{
@@ -661,7 +656,8 @@ class Greeter
 			case "{":
 			case "|":
 			case "Vert":
-				var br = (input == "Vert" ? "‖" : input);
+			case "sqrt":
+				var br = this.keywords[input];
 				var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
 				this.activeFormula = f;
 				ac.insert(this.activeIndex, f);
@@ -809,7 +805,7 @@ class Greeter
 				var lower = s.token(s.type != StructType.Infer ? 1 : 0);
 
 				this.outputToken(e, upper);
-				this.outputToken(e, lower).addClass("infered");
+				this.outputToken(e, lower).addClass("overline");
 
 				break;
 
@@ -847,7 +843,10 @@ class Greeter
 			if (f.prefix != "")
 				braced.append(this.makeBracket(f.prefix));
 
-			braced.append(this.outputFormulaInner(f));
+			var inner = this.outputFormulaInner(f);
+			if (f.prefix == "√")
+				inner.addClass("overline");
+			braced.append(inner);
 
 			if (f.suffix != "")
 				braced.append(this.makeBracket(f.suffix));
