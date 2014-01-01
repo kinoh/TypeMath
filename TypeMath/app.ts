@@ -56,6 +56,10 @@ class Greeter
 	symbols: string[] = [
 		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}", "|"
 	];
+	operators: string[] = [
+		"∑", "∏", "∐", "⋂", "⋃", "⨄", "⨆", "⋁", "⋀", "⨁", "⨂", "⨀",
+		"∫", "∮", "∬", "∭", "⨌"
+	];
 
 	keywords: { [key: string]: string } = {
 		"and": "∧",
@@ -756,6 +760,8 @@ class Greeter
 			e = $("<div/>")
 				.addClass(!this.proofMode && v.variable ? "variable" : "symbol")
 				.text(v.str);
+			if (this.operators.indexOf(v.str) >= 0)
+				e.addClass("operator");
 			q.append(e);
 		}
 		else if (t instanceof Num)

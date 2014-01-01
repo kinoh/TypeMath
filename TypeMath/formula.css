@@ -42,6 +42,11 @@
 	border: solid 1px #99f;
 }
 
+.operator
+{
+	font-size: xx-large;
+}
+
 .number
 {
 	margin: 0.1em;
