@@ -1,5 +1,5 @@
 ﻿/// <reference path="jquery.d.ts" />
-/// <reference path="io.ts" />
+/// <reference path="keyboard.ts" />
 /// <reference path="formula.ts" />
 /// <reference path="latex.ts" />
 /// <reference path="unicode.ts" />
@@ -19,7 +19,6 @@ class Greeter
 	private active: JQuery;
 	private latex: JQuery;
 	private candy: JQuery;
-	private io = new IO();
 	private glyph;
 	private _log: JQuery;
 	private _status: JQuery;
@@ -147,7 +146,7 @@ class Greeter
 	}
 	private processInput(e: KeyboardEvent): void
 	{
-		var key = this.io.knowKey(e);
+		var key = Keyboard.knowKey(e);
 
 		if (key == "")
 		{
@@ -206,7 +205,7 @@ class Greeter
 	private processControlInput(e: KeyboardEvent): void
 	{
 		var suppress = true;
-		var key = this.io.knowControlKey(e);
+		var key = Keyboard.knowControlKey(e);
 
 		switch (key)
 		{

@@ -3,39 +3,32 @@
 	Space, Left, Right, Up, Down, Backspace, Delete, Tab, Enter, Shift
 }
 
-class IO
+class Keyboard
 {
-    private keyMapNormal: { [key: number]: string };
-    private keyMapShifted: { [key: number]: string };
+    private static keyMapNormal = {
+		189: '-', 222: '^', 220: '¥', 192: '@', 219: '[',	/* Opera, Chrome, Safari */
+		187: ';', 186: ':', 221: ']', 188: ',', 190: '.',
+		191: '/', 226: '\\',
+		173: '-', 160: '^',  64: '@',  59: ';',  58: ':'	/* Firefox */
+	};
+	private static keyMapShifted = {
+		 49: '!',  50: '"',  51: '#',  52: '$',  53: '%',
+		 54: '&',  55: "'",  56: '(',  57: ')', 173: '=',
+		189: '~', 220: '|', 192: '`', 219: '{', 187: '+',
+		186: '*', 221: '}', 188: '<', 190: '>', 191: '?',
+		226: '_',
+		160: '~',  64: '`',  59: '+',  58: '*'
+	};
 
-    public constructor()
-	{
-		
-		this.keyMapNormal = {
-			189: '-', 222: '^', 220: '¥', 192: '@', 219: '[',	/* Opera, Chrome, Safari */
-			187: ';', 186: ':', 221: ']', 188: ',', 190: '.',
-			191: '/', 226: '\\',
-			173: '-', 160: '^',  64: '@',  59: ';',  58: ':'	/* Firefox */
-		};
-        this.keyMapShifted = {
-			 49: '!',  50: '"',  51: '#',  52: '$',  53: '%',
-			 54: '&',  55: "'",  56: '(',  57: ')', 173: '=',
-			189: '~', 220: '|', 192: '`', 219: '{', 187: '+',
-			186: '*', 221: '}', 188: '<', 190: '>', 191: '?',
-			226: '_',
-			160: '~',  64: '`',  59: '+',  58: '*'
-		};
-    }
-
-    public knowKey(e: KeyboardEvent): string
+    public static knowKey(e: KeyboardEvent): string
     {
 	    var code = e.keyCode;
 	    var key = "";
 
 	    if (!e.shiftKey)
 	    {
-            if (code in this.keyMapNormal)
-                key = this.keyMapNormal[code];
+            if (code in Keyboard.keyMapNormal)
+                key = Keyboard.keyMapNormal[code];
             else if (code >= 48 && code <= 57 || code >= 65 && code <= 90)
                 key = String.fromCharCode(code).toLowerCase();
 	    }
@@ -49,7 +42,7 @@ class IO
 
         return key;
 	}
-	public knowControlKey(e: KeyboardEvent): ControlKey
+	public static knowControlKey(e: KeyboardEvent): ControlKey
 	{
 		switch (e.keyCode)
 		{
