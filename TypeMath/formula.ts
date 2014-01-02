@@ -38,9 +38,9 @@ class Symbol extends Token
 
 class Num extends Token
 {
-	value: number;
+	value: string;
 
-	public constructor(n: number)
+	public constructor(n: string)
 	{
 		super();
 		this.value = n;
@@ -53,7 +53,7 @@ class Num extends Token
 
 	public toString(): string
 	{
-		return this.value.toString();
+		return this.value;
 	}
 }
 

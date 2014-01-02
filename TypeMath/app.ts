@@ -507,7 +507,7 @@ class Greeter
 		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
 		else if ((forceTrans != undefined && forceTrans
 				|| input.length > 1 && input != "Vert"
-				|| input.length == 1 && (this.inputType != InputType.Symbol || !(input in this.bracketCor)))
+				|| input.length == 1 && !(this.inputType == InputType.String || input in this.bracketCor))
 			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
 			this.pushCommand();
 		else
@@ -625,7 +625,7 @@ class Greeter
 				if (struct.type == StructType.Infer)
 					struct.elems[2] = new Formula(struct);
 
-				if (this.activeIndex > 0 && input == "/")
+				if (this.activeIndex > 0 && input != "frac")
 				{
 					struct.elems[0].insert(0,
 						this.activeFormula.tokens[this.activeIndex - 1]);
@@ -728,10 +728,7 @@ class Greeter
 
 		if (s.match("[0-9]+(\.[0-9]*)?"))
 		{
-			var n = RegExp.$1.length == 0 ? parseInt(s) : parseFloat(s);
-
-			if (!isNaN(n))
-				t = new Num(n);
+			t = new Num(s);
 		}
 
 		return t;
