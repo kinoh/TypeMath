@@ -24,12 +24,12 @@ class LaTeX
 
 	public static symbols: { [key: string]: string };
 
-    public static macro(n: string, ...args: Token[]): string
+	private static macro(n: string, ...args: Token[]): string
     {
 		return "\\" + n + "{ " + args.map(t => LaTeX.trans(t)).join(" }{ ") + " }";
     }
 
-	public static macroBreaked(n: string, indent: string, ...args: Token[]): string
+	private static macroBreaked(n: string, indent: string, ...args: Token[]): string
 	{
 		var inner = indent + "  ";
 		return "\\" + n + " {\n"
@@ -75,7 +75,7 @@ class LaTeX
 		else
 			return "?";
 	}
-	public static transSymbol(str: string, indent: string): string
+	private static transSymbol(str: string, indent: string): string
 	{
 		if (this.proofMode)
 		{
@@ -98,7 +98,7 @@ class LaTeX
 		else
 			return str;
 	}
-	public static transMatrix(m: Matrix, indent: string): string
+	private static transMatrix(m: Matrix, indent: string): string
 	{
 		var ln = (m.rows >= 2 && m.cols >= 2 && !(m.rows == 2 && m.cols == 2))
 			? "\n" : " ";
@@ -114,7 +114,7 @@ class LaTeX
 
 		return str;
 	}
-	public static transStructure(s: Structure, indent: string): string
+	private static transStructure(s: Structure, indent: string): string
 	{
 		var str: string;
 
@@ -140,7 +140,7 @@ class LaTeX
 				return "?struct?";
 		}
 	}
-	public static transFormula(f: Formula, indent: string): string
+	private static transFormula(f: Formula, indent: string): string
 	{
 		if (f.tokens.length == 1 && f.tokens[0] instanceof Matrix)
 		{

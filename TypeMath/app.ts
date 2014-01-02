@@ -16,9 +16,9 @@ enum InputType
 class Greeter
 {
 	private field: JQuery;
-	public active: JQuery;
-	public latex: JQuery;
-	public candy: JQuery;
+	private active: JQuery;
+	private latex: JQuery;
+	private candy: JQuery;
 	private io = new IO();
 	private glyph;
 	private _log: JQuery;
@@ -26,31 +26,31 @@ class Greeter
 	private _logText = "";
 	private _enableLog = false;
 
-	public formula = new Formula(null);
-	public activeFormula = this.formula;
-	public activeIndex = 0;
-	public markedIndex = -1;
-	public candIndex = -1;
-	public candCount = 0;
-	public candSelected: string = "";
-	public currentInput = "";
-	public inputType = InputType.Empty;
-	public clipboard: Token[] = [];
-	public outputCurrentStyle: FontStyle[];
+	private formula = new Formula(null);
+	private activeFormula = this.formula;
+	private activeIndex = 0;
+	private markedIndex = -1;
+	private candIndex = -1;
+	private candCount = 0;
+	private candSelected = "";
+	private currentInput = "";
+	private inputType = InputType.Empty;
+	private proofMode: boolean;
+	private clipboard: Token[] = [];
+	private outputCurrentStyle: FontStyle[];
 
-	public proofMode: boolean;
 	public candMax = 16;
 
-	digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-	symbols: string[] = [
+	private digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+	private symbols: string[] = [
 		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}", "|"
 	];
-	operators: string[] = [
+	private operators: string[] = [
 		"∑", "∏", "∐", "⋂", "⋃", "⨄", "⨆", "⋁", "⋀", "⨁", "⨂", "⨀",
 		"∫", "∮", "∬", "∭", "⨌"
 	];
 
-	keywords: { [key: string]: string } = {
+	private keywords: { [key: string]: string } = {
 		"and": "∧",
 		"or": "∨",
 		"not": "¬",
@@ -75,11 +75,11 @@ class Greeter
 		"mathfrak": ""
 	};
 
-	bracketCor = {
+	private bracketCor = {
 		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
 	};
 
-	public constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
+	constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.latex = latex;
@@ -103,7 +103,7 @@ class Greeter
 		$(document.body).append(canvas);
 		this.glyph = new GlyphFactory(<HTMLCanvasElement> canvas[0]);
 	}
-	public enrichKeywords(): void
+	private enrichKeywords(): void
 	{
 		for (var c in LaTeX.symbols)
 		{
@@ -112,7 +112,7 @@ class Greeter
 				this.keywords[key] = c;
 		}
 	}
-	public render(): void
+	private render(): void
 	{
 		this._elog("rendering begin;");
 
@@ -145,7 +145,7 @@ class Greeter
 			this.inputType == InputType.String ? "String" : "Symbol"),
 			"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
-	public processInput(e: KeyboardEvent): void
+	private processInput(e: KeyboardEvent): void
 	{
 		var key = this.io.knowKey(e);
 
@@ -203,7 +203,7 @@ class Greeter
 		else
 			return InputType.String;
 	}
-	public processControlInput(e: KeyboardEvent): void
+	private processControlInput(e: KeyboardEvent): void
 	{
 		var suppress = true;
 		var key = this.io.knowControlKey(e);
@@ -293,7 +293,7 @@ class Greeter
 			e.preventDefault();
 		this.render();
 	}
-	public processModifiedInput(key: string): void
+	private processModifiedInput(key: string): void
 	{
 		switch (key)
 		{
@@ -323,7 +323,7 @@ class Greeter
 
 		this.render();
 	}
-	public movePrev(): void
+	private movePrev(): void
 	{
 		if (this.activeFormula.parent instanceof Structure)
 		{
@@ -342,7 +342,7 @@ class Greeter
 		else
 			this.moveHorizontal(false);
 	}
-	public moveNext(): void
+	private moveNext(): void
 	{
 		if (this.activeFormula.parent instanceof Structure)
 		{
@@ -370,7 +370,7 @@ class Greeter
 		else
 			this.moveHorizontal(true);
 	}
-	public moveHorizontal(toRight: boolean): void
+	private moveHorizontal(toRight: boolean): void
 	{
 		if (this.currentInput != "")
 		{
@@ -452,7 +452,7 @@ class Greeter
 			}
 		}
 	}
-	public moveVertical(toUpper: boolean): void
+	private moveVertical(toUpper: boolean): void
 	{
 		if (this.markedIndex >= 0)
 			return;
@@ -497,7 +497,7 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	public interpretInput(forceTrans?: boolean): void
+	private interpretInput(forceTrans?: boolean): void
 	{
 		var t: Token = null;
 		var input = this.currentInput;
@@ -535,7 +535,7 @@ class Greeter
 		this.currentInput = this.candSelected;
 		this.interpretInput(true);
 	}
-	public showCandidate(): void
+	private showCandidate(): void
 	{
 		var key = this.currentInput;
 
@@ -737,7 +737,7 @@ class Greeter
 
 		return t;
 	}
-	public outputToken(q: JQuery, t: Token): JQuery
+	private outputToken(q: JQuery, t: Token): JQuery
 	{
 		var e: JQuery;
 
@@ -824,7 +824,7 @@ class Greeter
 		return r;
 
 	}
-	public outputStruct(s: Structure): JQuery
+	private outputStruct(s: Structure): JQuery
 	{
 		var e: JQuery;
 
@@ -868,7 +868,7 @@ class Greeter
 
 		return e;
 	}
-	public outputFormula(f: Formula): JQuery
+	private outputFormula(f: Formula): JQuery
 	{
 		var r: JQuery;
 		var shift = false;
@@ -919,7 +919,7 @@ class Greeter
 
 		return q;
 	}
-	public outputFormulaInner(f: Formula): JQuery
+	private outputFormulaInner(f: Formula): JQuery
 	{
 		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
 
