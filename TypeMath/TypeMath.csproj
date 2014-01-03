@@ -18,6 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="app.css" />
+    <Content Include="calc.ts" />
     <Content Include="default.htm" />
     <Content Include="formula.css" />
     <Content Include="formula.ts" />

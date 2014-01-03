@@ -1,4 +1,6 @@
-﻿class Token
+﻿/// <reference path="jquery.d.ts" />
+
+class Token
 {
 	renderedElem: JQuery = null;
 
@@ -360,6 +362,6 @@ class Formula extends Token /* TokenSeq */
 	}
 	public toString(): string
 	{
-		return "Formula( " + this.prefix + this.tokens.map(t => t.toString()).join(" ") + this.suffix + " )";
+		return "Formula( " + this.prefix + this.tokens.map(t => t ? t.toString() : "??").join(" ") + this.suffix + " )";
 	}
 }

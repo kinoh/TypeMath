@@ -4,6 +4,7 @@
 /// <reference path="latex.ts" />
 /// <reference path="unicode.ts" />
 /// <reference path="glyph.ts" />
+/// <reference path="calc.ts" />
 
 enum InputType
 {
@@ -42,7 +43,7 @@ class Greeter
 
 	private digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	private symbols: string[] = [
-		"+", "-", "*", "/", "^", "_", "<=", ">=", "(", ")", "[", "]", "{", "}", "|"
+		"+", "-", "*", "/", "^", "_", "!", ":", ",", "<=", ">=", "(", ")", "[", "]", "{", "}", "|"
 	];
 	private operators: string[] = [
 		"∑", "∏", "∐", "⋂", "⋃", "⨄", "⨆", "⋁", "⋀", "⨁", "⨂", "⨀",
@@ -214,7 +215,16 @@ class Greeter
 					this.currentInput = this.candSelected;
 				break;
 			case ControlKey.Enter:
-				this.decideCandidate();
+				if (this.candIndex >= 0)
+					this.decideCandidate();
+				else if (this.activeIndex > 0
+					&& this.activeFormula.tokens[this.activeIndex - 1] instanceof Symbol
+					&& (<Symbol> this.activeFormula.tokens[this.activeIndex - 1]).str == "=")
+				{
+					var res = Calc.eval(this.activeFormula.tokens.slice(0, this.activeIndex - 1));
+					this.activeFormula.paste(this.activeIndex, [res !== null ? res : new Symbol("?", false)]);
+					this.activeIndex++;
+				}
 				break;
 			case ControlKey.Space:
 				if (this.currentInput == "")
