@@ -19,7 +19,7 @@ class Segment
 
 	public draw(ctx: CanvasRenderingContext2D): void
 	{
-		alert("Segment.draw not implemented!");
+		console.error("[Segment.draw] draw method not implemented");
 	}
 }
 class Line extends Segment

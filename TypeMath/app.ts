@@ -25,6 +25,7 @@ class Greeter
 	private _status: JQuery;
 	private _logText = "";
 	private _enableLog = false;
+	private _enableStatus = false;
 
 	private formula = new Formula(null);
 	private activeFormula = this.formula;
@@ -119,36 +120,29 @@ class Greeter
 	}
 	private render(): void
 	{
-		this._elog("rendering begin;");
-
 		this.field.empty();
 		this.outputCurrentStyle = [FontStyle.Normal];
 		this.outputToken(this.field, this.formula);
 
-		this._elog("outputToken finished");
-
 		this.active.text(this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace);
 		this.showCandidate();
 
-		this._elog("showCandidate finished");
-
 		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
 
-		this._elog("rendering end;");
-
-		this._status.text([
-			"formula       = " + this.formula.toString(),
-			"activeFormula = " + this.activeFormula.toString(),
-			"activeIndex   = " + this.activeIndex.toString(),
-			"markedIndex   = " + this.markedIndex.toString(),
-			"candIndex     = " + this.candIndex.toString(),
-			"candCount     = " + this.candCount.toString(),
-			"candSelected  = " + this.candSelected.toString(),
-			"currentInput  = " + this.currentInput.toString(),
-			"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
-			this.inputType == InputType.Number ? "Number" :
-			this.inputType == InputType.String ? "String" : "Symbol"),
-			"clipboard     = " + this.clipboard.toString()].join("\n"));
+		if (this._enableStatus)
+			this._status.text([
+				"formula       = " + this.formula.toString(),
+				"activeFormula = " + this.activeFormula.toString(),
+				"activeIndex   = " + this.activeIndex.toString(),
+				"markedIndex   = " + this.markedIndex.toString(),
+				"candIndex     = " + this.candIndex.toString(),
+				"candCount     = " + this.candCount.toString(),
+				"candSelected  = " + this.candSelected.toString(),
+				"currentInput  = " + this.currentInput.toString(),
+				"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
+				this.inputType == InputType.Number ? "Number" :
+				this.inputType == InputType.String ? "String" : "Symbol"),
+				"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
 	private processInput(e: KeyboardEvent): void
 	{
@@ -820,7 +814,7 @@ class Greeter
 			q.append(e);
 		}
 		else
-			alert("Unexpected Argument (outputToken)\n" + t);
+			console.error("[Greeter.outputToken] unexpected argument : " + t);
 
 		t.renderedElem = e;
 
@@ -838,7 +832,7 @@ class Greeter
 			case FontStyle.BlackBoard:	table = Unicode.DoubleStruck; break;
 			case FontStyle.Roman:		table = Unicode.SansSerif; break;
 			case FontStyle.Typewriter:	table = Unicode.Monospace; break;
-			default: alert("Unexpected font style : " + style);
+			default: console.error("[Greeter.transStyle] unexpected font style : " + style);
 		}
 
 		var r = "";
@@ -990,18 +984,6 @@ class Greeter
 			e.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
 
 		return e;
-	}
-	private _elog(msg: string): void
-	{
-		if (this._logText.length == 40000)
-			alert("too long log text!");
-		this._logText = msg + "\n" + this._logText;
-
-		if (this._enableLog)
-		{
-			this._log.text(this._logText);
-			window.scrollTo(0, 0);
-		}
 	}
 }
 

@@ -142,8 +142,6 @@ class Calc
 	{
 		var q: Token[] = [];
 
-		console.debug("evalSeq " + t.toString());
-
 		for (var i = 0; i < t.length; i++)
 		{
 			var r: Token = null;
@@ -207,8 +205,6 @@ class Calc
 
 			q[i] = (r !== null ? r : t[i]);
 		}
-
-		console.debug("evalSeq last " + q.toString() + " " + q.length + " <- " + t.length);
 
 		return Calc.evalSeqMain(q, 0, 0);
 	}
@@ -294,7 +290,7 @@ class Calc
 				res = Calc.power(t[index], Calc.evalSeq(s.elems[0].tokens.slice(0)));
 			}
 		}
-		else
+		else if (t.length - index >= 2)
 		{
 			var p = Calc.getPriority("*", OperatorType.Infix);
 			if (p >= border)
@@ -327,7 +323,7 @@ class Calc
 		if (y instanceof Formula && (<Formula> y).tokens.length == 1)
 			y = (<Formula> y).tokens[0];
 
-		console.debug((sub ? "sub" : "add") + " " + x.toString() + " " + y.toString());
+		console.debug((sub ? "sub" : "add") + " " + (x ? x.toString() : "?") + " " + (y ? y.toString() : "?"));
 
 		if (x instanceof Numeric && y instanceof Numeric)
 		{
@@ -364,7 +360,7 @@ class Calc
 		if (y instanceof Formula && (<Formula> y).tokens.length == 1)
 			y = (<Formula> y).tokens[0];
 
-		console.debug((div ? "div" : "mul") + " " + x.toString() + " " + y.toString());
+		console.debug((div ? "div" : "mul") + " " + (x ? x.toString() : "?") + " " + (y ? y.toString() : "?"));
 
 		if (x instanceof Numeric && y instanceof Numeric)
 		{

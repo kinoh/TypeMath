@@ -10,7 +10,7 @@ class Token
 
 	clone(parent: TokenSeq): Token
 	{
-		alert("clone method not implemented");
+		console.error("[Token.clone] clone method not implemented");
 		return null;
 	}
 }
@@ -120,7 +120,7 @@ class Structure extends Token /* TokenSeq */
 	public token(i: number): Token
 	{
 		if (i < 0 || i >= this.elems.length)
-			alert("Structure.token : out of range " + i);
+			console.error("[Structure.token] out of range : " + i);
 		return this.elems[i];
 	}
 	public prev = (f: Formula) =>
@@ -184,7 +184,7 @@ class Matrix extends Structure
 	public tokenAt(r: number, c: number): Formula
 	{
 		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols)
-			alert("Matrix.token : out of range " + r + "," + c);
+			console.error("[Matrix.token] out of range : " + r + "," + c);
 		return this.elems[r * this.cols + c];
 	}
 
@@ -295,7 +295,7 @@ class Formula extends Token /* TokenSeq */
 	public token(i: number): Token
 	{
 		if (i < 0 || i >= this.tokens.length)
-			alert("Formula.token : out of range " + i);
+			console.error("[Formula.token] out of range : " + i);
 		return this.tokens[i];
 	}
 	public count(): number
