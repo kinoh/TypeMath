@@ -300,6 +300,7 @@ class Calc
 
 		if (t[index] instanceof Symbol)
 		{
+			console.debug("eval 0 symbol");
 			var opr = Calc.getOperator((<Symbol> t[index]).str, OperatorType.Prefix);
 
 			if (opr != null && opr.priority >= border)
@@ -326,6 +327,7 @@ class Calc
 		}
 		else if (t[index + 1] instanceof Symbol)
 		{
+			console.debug("eval 1 symbol");
 			var o = <Symbol> t[index + 1];
 			var p: number;
 
@@ -353,14 +355,15 @@ class Calc
 			}
 			else if ((p = Calc.getPriority(o.str, OperatorType.Prefix)) >= border)
 			{
-				argc = 4;
-				Calc.evalSeqMain(t, index + 2, 0);
-				res = Calc.mul(t[index], t[index + 2], false);
+				argc = 2;
+				Calc.evalSeqMain(t, index + 1, 0);
+				res = Calc.mul(t[index], t[index + 1], false);
 			}
 		}
 		else if (t[index + 1] instanceof Structure
 			&& (<Structure> t[index + 1]).type == StructType.Power)
 		{
+			console.debug("eval 1 pow");
 			var res: Token = null;
 			var s = <Structure> t[index + 1];
 			var p = Calc.getPriority("^", OperatorType.Infix);
@@ -373,6 +376,7 @@ class Calc
 		}
 		else if (t.length - index >= 2)
 		{
+			console.debug("eval 0 mul");
 			var p = Calc.getPriority("*", OperatorType.Infix);
 			if (p >= border)
 			{
