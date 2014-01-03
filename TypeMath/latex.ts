@@ -146,7 +146,7 @@ class LaTeX
 		{
 			var br = f.prefix + f.suffix;
 
-			if (br in this.amsBracket)
+			if (br in this.amsBracket)	// incomplete condition
 			{
 				var n = this.amsBracket[br];
 				return "\\begin{" + n + "matrix}"

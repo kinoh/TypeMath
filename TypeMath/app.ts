@@ -60,6 +60,11 @@ class Greeter
 		"infer": "",
 		"frac": "",
 		"matrix": "",
+		"pmatrix": "(",
+		"bmatrix": "[",
+		"Bmatrix": "{",
+		"vmatrix": "|",
+		"Vmatrix": "‖",
 		"(": "(",
 		"[": "[",
 		"|": "|",
@@ -635,12 +640,14 @@ class Greeter
 				if (struct.type == StructType.Infer)
 					struct.elems[2] = new Formula(struct);
 
-				if (this.activeIndex > 0 && input != "frac")
+				var last = this.activeFormula.tokens[this.activeIndex - 1];
+				if (this.activeIndex > 0 && input != "frac"
+					&& !(last instanceof Symbol && (<Symbol> last).str == "&"))
 				{
-					struct.elems[0].insert(0,
-						this.activeFormula.tokens[this.activeIndex - 1]);
+					struct.elems[0].insert(0, last);
 					this.activeFormula.remove(this.activeIndex - 1);
 					this.activeFormula = struct.elems[1];
+					this.activeIndex--;
 				}
 				else
 					this.activeFormula = struct.elems[0];
@@ -659,10 +666,25 @@ class Greeter
 				this.activeIndex = 0;
 				break;
 			case "matrix":
+			case "pmatrix":
+			case "bmatrix":
+			case "Bmatrix":
+			case "vmatrix":
+			case "Vmatrix":
 				struct = new Matrix(this.activeFormula, 1, 1);
 				struct.elems[0] = new Formula(struct);
+
+				var br = this.keywords[input];
+				if (br == "")
+					ac.insert(this.activeIndex, struct);
+				else
+				{
+					var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
+					ac.insert(this.activeIndex, f);
+					struct.parent = f;
+					f.insert(0, struct);
+				}
 				this.activeFormula = struct.elems[0];
-				ac.insert(this.activeIndex, struct);
 				this.activeIndex = 0;
 				break;
 			case "(":
