@@ -594,7 +594,11 @@ class Greeter
 		{
 			var glyph = (c in this.keywords ? this.keywords[c] : c);
 			var e = $("<div/>").addClass("candidate").text(c + " " + glyph);
-			if (i0 + i == this.candIndex)
+			if (i == 0 && i0 > 0)
+				e.addClass("candidateSucc");
+			else if (i == cand.length - 1 && i0 + i < this.candCount - 1)
+				e.addClass("candidateLast");
+			else if (i0 + i == this.candIndex)
 			{
 				e.addClass("candidateSelected");
 				this.candSelected = c;

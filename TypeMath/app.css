@@ -42,6 +42,17 @@
 	background-color: #cfc;
 }
 
+.candidateSucc
+{
+	background: -moz-linear-gradient(top, #777, #ccc 15%, #eee 25%, #fff 50%, #fff);
+	background: -webkit-gradient(linear, center top, center bottom, from(#888), color-stop(0.15, #ccc), color-stop(0.25, #eee), color-stop(0.50, #fff), to(#fff));
+}
+.candidateLast
+{
+	background: -moz-linear-gradient(top, #fff, #fff 50%, #eee 75%, #ccc 85%, #888);
+	background: -webkit-gradient(linear, center top, center bottom, from(#fff), color-stop(0.50, #fff), color-stop(0.75, #eee), color-stop(0.85, #ccc), to(#777));
+}
+
 .active
 {
 	border: solid 1px #fcc;

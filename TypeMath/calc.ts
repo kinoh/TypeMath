@@ -1,10 +1,60 @@
 ﻿/// <reference path="formula.ts" />
 
+class MathEx
+{
+	public static Log10Inv = 1 / Math.log(10);
+
+	public static cosh(x: number): number
+	{
+		var y = Math.exp(x);
+		return (y + 1 / y) / 2;
+	}
+	public static sinh(x: number): number
+	{
+		var y = Math.exp(x);
+		return (y - 1 / y) / 2;
+	}
+	public static tanh(x: number): number
+	{
+		var y = Math.exp(2 * x);
+		return (y - 1) / (y + 1);
+	}
+	public static coth(x: number): number
+	{
+		var y = Math.exp(2 * x);
+		return (y + 1) / (y - 1);
+	}
+	public static csc(x: number): number
+	{
+		return 1 / Math.cos(x);
+	}
+	public static sec(x: number): number
+	{
+		return 1 / Math.sin(x);
+	}
+	public static cot(x: number): number
+	{
+		return 1 / Math.tan(x);
+	}
+	public static lg(x: number): number
+	{
+		return Math.log(x) * MathEx.Log10Inv;
+	}
+}
+
 enum OperatorType
 {
     Prefix,
     Suffix,
     Infix
+}
+
+interface Operator
+{
+	symbol: string;
+	type: OperatorType;
+	priority: number;
+	func?: (x: number) => number;
 }
 
 class Numeric extends Token
@@ -106,13 +156,36 @@ class Calc
 		return null;
 	}
 
-    private static operator = [
-        { symbol: "+", type: OperatorType.Infix, priority: 1 },
-        { symbol: "-", type: OperatorType.Infix, priority: 1 },
-        { symbol: "*", type: OperatorType.Infix, priority: 2 },
-        { symbol: "/", type: OperatorType.Infix, priority: 2 },
-        { symbol: "+", type: OperatorType.Prefix, priority: 3 },
+    private static operator: Operator[] = [
+		{ symbol: "mod", type: OperatorType.Infix, priority: 0 },
+		{ symbol: "+", type: OperatorType.Infix, priority: 1 },
+		{ symbol: "-", type: OperatorType.Infix, priority: 1 },
+		{ symbol: "*", type: OperatorType.Infix, priority: 2 },
+		{ symbol: "/", type: OperatorType.Infix, priority: 2 },
+		{ symbol: "+", type: OperatorType.Prefix, priority: 3 },
 		{ symbol: "-", type: OperatorType.Prefix, priority: 3 },
+		{ symbol: "arccos", type: OperatorType.Prefix, priority: 3, func: Math.acos },
+		{ symbol: "arcsin", type: OperatorType.Prefix, priority: 3, func: Math.asin},
+		{ symbol: "arctan", type: OperatorType.Prefix, priority: 3, func: Math.atan },
+		//{ symbol: "arg", type: OperatorType.Prefix, priority: 3 },
+		{ symbol: "cos", type: OperatorType.Prefix, priority: 3, func: Math.cos },
+		{ symbol: "cosh", type: OperatorType.Prefix, priority: 3, func: MathEx.cosh },
+		{ symbol: "cot", type: OperatorType.Prefix, priority: 3, func: MathEx.cot },
+		{ symbol: "coth", type: OperatorType.Prefix, priority: 3, func: MathEx.coth },
+		{ symbol: "csc", type: OperatorType.Prefix, priority: 3, func: MathEx.csc },
+		//{ symbol: "det", type: OperatorType.Prefix, priority: 3 },
+		{ symbol: "exp", type: OperatorType.Prefix, priority: 3, func: Math.exp },
+		//{ symbol: "gcd", type: OperatorType.Prefix, priority: 3 },
+		{ symbol: "lg", type: OperatorType.Prefix, priority: 3, func: MathEx.lg },
+		{ symbol: "ln", type: OperatorType.Prefix, priority: 3, func: Math.log },
+		{ symbol: "log", type: OperatorType.Prefix, priority: 3, func: Math.log },
+		//{ symbol: "max", type: OperatorType.Prefix, priority: 3 },
+		//{ symbol: "min", type: OperatorType.Prefix, priority: 3 },
+		{ symbol: "sec", type: OperatorType.Prefix, priority: 3, func: MathEx.sec },
+		{ symbol: "sin", type: OperatorType.Prefix, priority: 3, func: Math.sin },
+		{ symbol: "sinh", type: OperatorType.Prefix, priority: 3, func: MathEx.sinh },
+		{ symbol: "tan", type: OperatorType.Prefix, priority: 3, func: Math.tan },
+		{ symbol: "tanh", type: OperatorType.Prefix, priority: 3, func: MathEx.tanh },
 		{ symbol: "^", type: OperatorType.Infix, priority: 4 },
 		{ symbol: "!", type: OperatorType.Suffix, priority: 5 },
 		{ symbol: "(", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
@@ -126,16 +199,21 @@ class Calc
 	{
 		return Calc.operator.some(o => o.symbol == symbol && o.type == type);
 	}
-	private static getPriority(symbol: string, type: OperatorType): number
+	private static getOperator(symbol: string, type: OperatorType): Operator
 	{
 		for (var i = 0; i < Calc.operator.length; i++)
 		{
 			var o = Calc.operator[i];
 			if (o.symbol == symbol && o.type == type)
-				return o.priority;
+				return o;
 		}
 
-		return -1;
+		return null;
+	}
+	private static getPriority(symbol: string, type: OperatorType): number
+	{
+		var o = Calc.getOperator(symbol, type);
+		return o !== null ? o.priority : -1;
 	}
 
 	private static evalSeq(t: Token[]): Token
@@ -193,7 +271,7 @@ class Calc
 				r = Calc.evalSeq(f.tokens);
 
 				if (f.prefix == "√" && f.suffix == "")
-					r = Calc.sqrt(r);
+					r = Calc.realFunc(r, Math.sqrt);
 				else if (f.prefix == "|" && f.suffix == "|"
 					|| f.prefix == "‖" && f.suffix == "‖")
 					r = Calc.norm(r);
@@ -222,12 +300,11 @@ class Calc
 
 		if (t[index] instanceof Symbol)
 		{
-			var o = <Symbol> t[index];
-			var p = Calc.getPriority(o.str, OperatorType.Prefix);
+			var opr = Calc.getOperator((<Symbol> t[index]).str, OperatorType.Prefix);
 
-			if (p >= border)
+			if (opr != null && opr.priority >= border)
 			{
-				if (o.str == "(" || o.str == "[" || o.str == "{")
+				if (opr.symbol == "(" || opr.symbol == "[" || opr.symbol == "{")
 				{
 					argc = 3;
 					Calc.evalSeqMain(t, index + 1, 0);
@@ -237,11 +314,13 @@ class Calc
 				else
 				{
 					argc = 2;
-					Calc.evalSeqMain(t, index + 1, p + 1);
-					if (o.str == "-")
+					Calc.evalSeqMain(t, index + 1, opr.priority + 1);
+					if (opr.symbol == "-")
 						res = Calc.negate(t[index + 1]);
-					else if (o.str == "+")
+					else if (opr.symbol == "+")
 						res = t[index + 1];
+					else if (opr.func)
+						res = Calc.realFunc(t[index + 1], opr.func);
 				}
 			}
 		}
@@ -262,6 +341,8 @@ class Calc
 					res = Calc.mul(t[index], t[index + 2], false);
 				else if (o.str == "/" || o.str == "÷")
 					res = Calc.mul(t[index], t[index + 2], true);
+				else if (o.str == "mod")
+					res = Calc.mod(t[index], t[index + 2]);
 			}
 			else if ((p = Calc.getPriority(o.str, OperatorType.Suffix)) >= border)
 			{
@@ -413,22 +494,55 @@ class Calc
 
 		return null;
 	}
-	private static negate(x: Token): Token
+	private static mod(x: Token, y: Token): Token
 	{
-		var a = <Matrix> x;
-		var r = new Matrix(null, a.rows, a.cols);
-		for (var i = 0; i < a.rows; i++)
+		if (x instanceof Formula && (<Formula> x).tokens.length == 1)
+			x = (<Formula> x).tokens[0];
+		if (y instanceof Formula && (<Formula> y).tokens.length == 1)
+			y = (<Formula> y).tokens[0];
+
+		if (x instanceof Numeric && y instanceof Numeric)
 		{
-			for (var j = 0; j < a.cols; j++)
+			var m = <Numeric> x;
+			var n = <Numeric> y;
+
+			if (m.den == 1 && n.den == 1)
 			{
-				r.elems[i * a.cols + j] = new Formula(r);
-				var s = Calc.add(Numeric.Zero, a.tokenAt(i, j), true);
-				if (s === null)
-					return null;
-				r.elems[i * a.cols + j].tokens.push(s);
+				var r = m.num % n.num;
+				if (r < 0)
+					r += n.num;
+				return new Numeric(r, 1, m.approx || n.approx);
 			}
 		}
-		return r;
+
+		return null;
+	}
+	private static negate(x: Token): Token
+	{
+		if (x instanceof Numeric)
+		{
+			var n = <Numeric> x;
+			return new Numeric(-n.num, n.den, n.approx);
+		}
+		else if (x instanceof Matrix)
+		{
+			var a = <Matrix> x;
+			var r = new Matrix(null, a.rows, a.cols);
+			for (var i = 0; i < a.rows; i++)
+			{
+				for (var j = 0; j < a.cols; j++)
+				{
+					r.elems[i * a.cols + j] = new Formula(r);
+					var s = Calc.add(Numeric.Zero, a.tokenAt(i, j), true);
+					if (s === null)
+						return null;
+					r.elems[i * a.cols + j].tokens.push(s);
+				}
+			}
+			return r;
+		}
+
+		return null;
 	}
 	private static power(x: Token, y: Token): Token
 	{
@@ -464,12 +578,12 @@ class Calc
 
 		return null;
 	}
-	private static sqrt(x: Token): Token
+	private static realFunc(x: Token, f: (x: number) => number): Token
 	{
 		if (x instanceof Numeric)
 		{
 			var m = <Numeric> x;
-			return Numeric.fromReal(Math.sqrt(m.value));
+			return Numeric.fromReal(f(m.value));
 		}
 
 		return null;
