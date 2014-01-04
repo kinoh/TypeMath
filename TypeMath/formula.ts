@@ -158,6 +158,7 @@ class Structure extends Token /* TokenSeq */
 			case StructType.Infer: type = "Infer"; break;
 			case StructType.Power: type = "Power"; break;
 			case StructType.Index: type = "Index"; break;
+			case StructType.BigOpr: type = "BigOpr"; break;
 		}
 
 		return type + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
@@ -259,6 +260,16 @@ class Matrix extends Structure
 	public toString(): string
 	{
 		return "Matrix" + this.rows + "," + this.cols + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
+	}
+}
+class BigOpr extends Structure
+{
+	operator: string;
+
+	constructor(parent: TokenSeq, operator: string)
+	{
+		super(parent, StructType.BigOpr);
+		this.operator = operator;
 	}
 }
 

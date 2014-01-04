@@ -136,6 +136,11 @@ class LaTeX
 				return str.length == 1
 					? "_" + str
 					: "_{ " + str + " }";
+			case StructType.BigOpr:
+				return LaTeX.transSymbol((<BigOpr> s).operator, indent)
+					+ "_{" + LaTeX.trans(s.elems[0])
+					+ "}^{" + LaTeX.trans(s.elems[1]) + "}";
+				break;
 			default:
 				return "?struct?";
 		}

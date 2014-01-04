@@ -50,7 +50,12 @@
 
 .operator
 {
-	font-size: xx-large;
+	font-size: larger;
+}
+
+.subFormula
+{
+	font-size: smaller;
 }
 
 .number

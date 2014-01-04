@@ -709,14 +709,28 @@ class Greeter
 				var f = new Formula(this.activeFormula, "", "", LaTeX.styles[input]);
 				this.activeFormula = f;
 				ac.insert(this.activeIndex, f);
-				this.activeIndex = 0;				
+				this.activeIndex = 0;
 				break;
 			default:
-				var s = (input in this.keywords)
-					? new Symbol(this.keywords[input], false)
-					: new Symbol(input, this.inputType == InputType.String);
-				this.activeFormula.insert(this.activeIndex, s);
-				this.activeIndex++;
+				if (input in this.keywords &&
+					this.operators.indexOf(this.keywords[input]) >= 0)
+				{
+					struct = new BigOpr(this.activeFormula, this.keywords[input]);
+					struct.elems[0] = new Formula(struct);
+					struct.elems[1] = new Formula(struct);
+					this.activeFormula = struct.elems[0];
+
+					ac.insert(this.activeIndex, struct);
+					this.activeIndex = 0;
+				}
+				else
+				{
+					var s = (input in this.keywords)
+						? new Symbol(this.keywords[input], false)
+						: new Symbol(input, this.inputType == InputType.String);
+					this.activeFormula.insert(this.activeIndex, s);
+					this.activeIndex++;
+				}
 				break;
 		}
 
@@ -787,8 +801,6 @@ class Greeter
 				e.addClass("variable");
 			else
 				e.addClass("symbol");
-			if (this.operators.indexOf(str) >= 0)
-				e.addClass("operator");
 
 			q.append(e);
 		}
@@ -888,6 +900,26 @@ class Greeter
 						r.append(c);
 					}
 					e.append(r);
+				}
+				break;
+
+			case StructType.BigOpr:
+				var o = <BigOpr> s;
+				if (["∫", "∮", "∬", "∭", "⨌"].indexOf(o.operator) >= 0)
+				{
+					e = $("<div/>").addClass("math");
+					e.append($("<div/>").text(o.operator).addClass("operator"));
+					var f = $("<div/>").addClass("frac");
+					this.outputToken(f, s.token(1)).addClass("subFormula");
+					this.outputToken(f, s.token(0)).addClass("subFormula");
+					e.append(f);
+				}
+				else
+				{
+					e = $("<div/>").addClass("frac");
+					this.outputToken(e, s.token(1)).addClass("subFormula");
+					e.append($("<div/>").text(o.operator).addClass("operator"));
+					this.outputToken(e, s.token(0)).addClass("subFormula");
 				}
 				break;
 		}
