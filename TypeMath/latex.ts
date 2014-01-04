@@ -178,10 +178,15 @@ class LaTeX
 			if (f.tokens.every(t => t instanceof Symbol || t instanceof Num))
 				separator = "";
 		}
-		else if (f.prefix == "√")
+		else if (f.prefix == "√" && f.suffix == "")
 		{
 			pre = "\\sqrt{ ";
 			suf = " }";
+		}
+		else if (f.prefix == "" && f.suffix in LaTeX.symbols)	// incomplete condition
+		{
+			pre = "\\" + LaTeX.symbols[f.suffix] + "{";
+			suf = "}";
 		}
 		else
 		{

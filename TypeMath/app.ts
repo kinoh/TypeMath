@@ -62,6 +62,7 @@ class Application
 		"∑", "∏", "∐", "⋂", "⋃", "⨄", "⨆", "⋁", "⋀", "⨁", "⨂", "⨀",
 		"∫", "∮", "∬", "∭", "⨌"
 	];
+	private accents: string[] = ["̀", "́", "̂", "̃", "̄", "̆", "̇", "̈", "̊", "̌"];
 
 	private keywords: { [key: string]: string } = {
 		"and": "∧",
@@ -84,13 +85,7 @@ class Application
 		"floor": "⌊",
 		"ceil": "⌈",
 		"angle": "〈",
-		"sqrt": "√",
-		"mathbf": "",
-		"mathbb": "",
-		"mathrm": "",
-		"mathtt": "",
-		"mathscr": "",
-		"mathfrak": ""
+		"sqrt": "√"
 	};
 
 	private bracketCor = {
@@ -726,6 +721,18 @@ class Application
 			case "mathtt":
 				this.insertToken(new Formula(this.activeFormula, "", "", LaTeX.styles[input]));
 				break;
+			case "grave":
+			case "acute":
+			case "hat":
+			case "tilde":
+			case "bar":
+			case "breve":
+			case "dot":
+			case "ddot":
+			case "mathring":
+			case "check":
+				this.insertToken(new Formula(this.activeFormula, "", this.keywords[input]));
+				break;
 			default:
 				if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
@@ -1141,7 +1148,13 @@ class Application
 				inner.addClass("overline");
 			braced.append(inner);
 
-			if (f.suffix != "")
+			if (this.accents.indexOf(f.suffix) >= 0)
+			{
+				var last = inner.children(":last");
+				last.text(last.text() + f.suffix);
+				braced.addClass("formulaStyled");
+			}
+			else if (f.suffix != "")
 				braced.append(this.makeBracket(f.suffix));
 
 			r = braced;
