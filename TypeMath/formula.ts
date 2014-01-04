@@ -66,6 +66,10 @@ interface TokenSeq
 	token(i: number): Token;
 	next(t: Token): any;
 	prev(t: Token): any;
+
+	/* Token method */
+	clone(parent: TokenSeq): Token;
+	renderedElem: JQuery;
 }
 
 enum StructType
@@ -344,13 +348,6 @@ class Formula extends Token /* TokenSeq */
 		var to = Math.max(a, b);
 
 		return this.tokens.slice(from, to).map(s => s.clone(null));
-	}
-	public cut(a: number, b: number): Token[]
-	{
-		var from = Math.min(a, b);
-		var len = Math.abs(a - b);
-
-		return this.tokens.splice(from, len).map(s => s.clone(null));
 	}
 
 	public paste(i: number, t: Token[]): void

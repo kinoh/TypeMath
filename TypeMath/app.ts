@@ -144,6 +144,10 @@ class Greeter
 				this.inputType == InputType.String ? "String" : "Symbol"),
 				"clipboard     = " + this.clipboard.toString()].join("\n"));
 	}
+
+	//////////////////////////////////////
+	/*  event handling					*/
+	//////////////////////////////////////
 	private processInput(e: KeyboardEvent): void
 	{
 		var key = Keyboard.knowKey(e);
@@ -167,17 +171,6 @@ class Greeter
 			this.currentInput += key;
 			this.inputType = t;
 		}
-		else if (this.inputType == InputType.Number)
-		{
-			if (t == this.inputType || key == ".")
-				this.currentInput += key;
-			else
-			{
-				this.pushNumber();
-				this.inputType = t;
-				this.currentInput += key;
-			}
-		}
 		else
 		{
 			if (t == this.inputType)
@@ -195,7 +188,8 @@ class Greeter
 	}
 	private getInputType(s: string): InputType
 	{
-		if (this.digits.indexOf(s) >= 0)
+		if (this.digits.indexOf(s) >= 0
+			|| this.inputType == InputType.Number && s == ".")
 			return InputType.Number;
 		else if (this.symbols.indexOf(s) >= 0)
 			return InputType.Symbol;
@@ -221,8 +215,7 @@ class Greeter
 					&& (<Symbol> this.activeFormula.tokens[this.activeIndex - 1]).str == "=")
 				{
 					var res = Calc.eval(this.activeFormula.tokens.slice(0, this.activeIndex - 1));
-					this.activeFormula.paste(this.activeIndex, [res !== null ? res : new Symbol("?", false)]);
-					this.activeIndex++;
+					this.pasteToken([res !== null ? res : new Symbol("?", false)]);
 				}
 				break;
 			case ControlKey.Space:
@@ -234,7 +227,21 @@ class Greeter
 						this.movePrev();
 					}
 					else
+					{
+						if (this.activeFormula.parent instanceof Structure)
+						{
+							var p = <Structure> this.activeFormula.parent;
+							if (p.type == StructType.Infer
+								&& p.elems[1] == this.activeFormula)
+							{
+								this.inputType = InputType.String;
+								this.currentInput = "&";
+								this.interpretInput();
+								break;
+							}
+						}
 						this.moveNext();
+					}
 				}
 				else
 					this.interpretInput();
@@ -275,14 +282,12 @@ class Greeter
 				else if (this.markedIndex >= 0)
 				{
 					var i = Math.min(this.markedIndex, this.activeIndex);
-					this.activeFormula.remove(i, Math.abs(this.markedIndex - this.activeIndex));
+					this.removeToken(i, Math.abs(this.markedIndex - this.activeIndex));
 					this.markedIndex = -1;
-					this.activeIndex = i;
 				}
 				else if (this.activeIndex > 0)
 				{
-					this.activeFormula.remove(this.activeIndex - 1);
-					this.activeIndex--;
+					this.removeToken(this.activeIndex - 1, 1);
 				}
 				break;
 			case ControlKey.Shift:
@@ -315,74 +320,44 @@ class Greeter
 			case "x":
 				if (this.markedIndex >= 0)
 				{
-					this.clipboard = this.activeFormula.cut(this.markedIndex, this.activeIndex);
-					this.activeIndex = Math.min(this.activeIndex, this.markedIndex);
+					this.clipboard = this.activeFormula.copy(this.markedIndex, this.activeIndex);
+					this.removeToken(Math.min(this.markedIndex, this.activeIndex),
+						Math.abs(this.markedIndex - this.activeIndex));
 					this.markedIndex = -1;
 				}
 				break;
 			case "v":
 				if (this.clipboard != null)
-				{
-					this.activeFormula.paste(this.activeIndex, this.clipboard);
-					this.activeIndex += this.clipboard.length;
-				}
+					this.pasteToken(this.clipboard);
 				break;
 		}
 
 		this.render();
 	}
+
 	private movePrev(): void
 	{
-		if (this.activeFormula.parent instanceof Structure)
+		if (this.activeIndex == 0)
 		{
-			var p = <Structure> this.activeFormula.parent;
-			var prev: Formula;
-
-			if (this.activeIndex == 0
-				&& (prev = p.prev(this.activeFormula)) != null)
-			{
-				this.activeFormula = prev;
-				this.activeIndex = prev.count();
-			}
-			else
-				this.moveHorizontal(false);
+			if (this.transferFormula(false))
+				return;
 		}
-		else
-			this.moveHorizontal(false);
+		this.moveHorizontal(false);
 	}
 	private moveNext(): void
 	{
-		if (this.activeFormula.parent instanceof Structure)
+		if (this.activeIndex == this.activeFormula.count())
 		{
-			var p = <Structure> this.activeFormula.parent;
-			if (p.type == StructType.Infer
-				&& p.elems[1] == this.activeFormula)
-			{
-				this.inputType = InputType.String;
-				this.currentInput = "&";
-				this.interpretInput();
-			}
-			else
-			{
-				var next: Formula;
-				if (this.activeIndex == this.activeFormula.count()
-					&& (next = p.next(this.activeFormula)) != null)
-				{
-					this.activeFormula = next;
-					this.activeIndex = 0;
-				}
-				else
-					this.moveHorizontal(true);
-			}
+			if (this.transferFormula(true))
+				return;
 		}
-		else
-			this.moveHorizontal(true);
+		this.moveHorizontal(true);
 	}
-	private moveHorizontal(toRight: boolean): void
+	private moveHorizontal(forward: boolean): void
 	{
 		if (this.currentInput != "")
 		{
-			if (!toRight)
+			if (!forward)
 			{
 				this.currentInput = this.currentInput.slice(0, -1);
 				return;
@@ -391,27 +366,13 @@ class Greeter
 				this.interpretInput();
 		}
 
-		var dif = toRight ? 1 : -1;
+		var dif = forward ? 1 : -1;
 
 		if (this.activeIndex + dif >= 0
 			&& this.activeIndex + dif <= this.activeFormula.count())
 		{
-			var dest = this.activeFormula.tokens[this.activeIndex + (toRight ? 0 : -1)];
-			if (this.markedIndex < 0 && (dest instanceof Structure || dest instanceof Formula))
-			{
-				if (dest instanceof Structure)
-				{
-					var s = <Structure> dest;
-					this.activeFormula = <Formula> s.token(toRight ? 0 : s.elems.length - 1);
-				}
-				else
-					this.activeFormula = <Formula> dest;
-
-				this.activeIndex = toRight ? 0 : this.activeFormula.count();
-			}
-			else
+			if (!this.enterFormula(forward))
 				this.activeIndex += dif;
-
 			return;
 		}
 
@@ -419,14 +380,6 @@ class Greeter
 
 		if (p == null)
 			return;
-		else if (p instanceof Formula)
-		{
-			var f = <Formula>p;
-			this.activeIndex = f.tokens.indexOf(this.activeFormula) + (toRight ? 1 : 0);
-			if (this.markedIndex >= 0)
-				this.markedIndex = this.activeIndex + dif;
-			this.activeFormula = f;
-		}
 		else if (p instanceof Structure)
 		{
 			var s = <Structure> p;
@@ -434,33 +387,21 @@ class Greeter
 			if (s.type == StructType.Matrix)
 			{
 				var m = <Matrix> s;
-				var a = m.around(this.activeFormula, true, toRight);
+				var a = m.around(this.activeFormula, true, forward);
 				if (a != null)
 				{
-					this.activeFormula = a;
-					this.activeIndex = toRight ? 0 : this.activeFormula.count();
-					return;
+					if (this.transferFormula(forward, a))
+						return;
 				}
 			}
 
-			if (this.markedIndex < 0
-				&& s.type == StructType.Infer && toRight
-				&& s.elems.indexOf(this.activeFormula) < 2)	// label of infer
-			{
-				this.activeFormula = <Formula>s.token(2);
-				this.activeIndex = 0;
-			}
-			else
-			{
-				var f = <Formula>(s.parent);
-				this.activeIndex = f.tokens.indexOf(s) + (toRight ? 1 : 0);
-				if (this.markedIndex >= 0)
-					this.markedIndex = this.activeIndex + dif;
-				this.activeFormula = f;
-			}
+			if (this.transferFormula(forward))
+				return;
 		}
+
+		this.leaveFormula(forward);
 	}
-	private moveVertical(toUpper: boolean): void
+	private moveVertical(upward: boolean): void
 	{
 		if (this.markedIndex >= 0)
 			return;
@@ -474,15 +415,15 @@ class Greeter
 				var s = <Structure>p;
 				var neig: Formula;
 				if (s.type == StructType.Infer)
-					neig = (toUpper ? s.next : s.prev)(<Formula> ac);
+					neig = (upward ? s.next : s.prev)(<Formula> ac);
 				else if (s.type == StructType.Matrix)
-					neig = (<Matrix> s).around(<Formula> ac, false, !toUpper);
+					neig = (<Matrix> s).around(<Formula> ac, false, !upward);
 				else
-					neig = (toUpper ? s.prev : s.next)(<Formula> ac);
+					neig = (upward ? s.prev : s.next)(<Formula> ac);
 
 				if (neig != null)
 				{
-					this.activeFormula = <Formula>neig;
+					this.transferFormula(false, neig);
 
 					var rect = this.active[0].getBoundingClientRect();
 					var x0 = (rect.left + rect.right) / 2;
@@ -505,23 +446,7 @@ class Greeter
 			p = p.parent;
 		}
 	}
-	private interpretInput(forceTrans?: boolean): void
-	{
-		var t: Token = null;
-		var input = this.currentInput;
 
-		if (this.inputType == InputType.Number)
-			this.pushNumber();
-		// single character will not interpreted (unless, you cannot input "P"!)
-		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
-		else if ((forceTrans != undefined && forceTrans
-				|| input.length > 1 && input != "Vert"
-				|| input.length == 1 && !(this.inputType == InputType.String || input in this.bracketCor))
-			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
-			this.pushCommand();
-		else
-			this.pushSymbols();
-	}
 	private changeCandidate(next: boolean): void
 	{
 		if (this.candIndex < 0)
@@ -606,24 +531,44 @@ class Greeter
 			this.candy.append(e);
 		});
 	}
-	private pushNumber(): void
+
+	//////////////////////////////////////
+	/*  input interpretation			*/
+	//////////////////////////////////////
+	private interpretInput(forceTrans?: boolean): void
 	{
-		var t = this.tryParseNumber(this.currentInput);
+		var t: Token = null;
+		var input = this.currentInput;
 
-		if (t != null)
-		{
-			this.activeFormula.insert(this.activeIndex, t);
-			this.activeIndex++;
-		}
-
+		if (this.inputType == InputType.Number)
+			this.pushNumber();
+		// single character will not interpreted (unless, you cannot input "P"!)
+		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
+		else if ((forceTrans != undefined && forceTrans
+				|| input.length > 1 && input != "Vert"
+				|| input.length == 1 && !(this.inputType == InputType.String || input in this.bracketCor))
+			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
+			this.pushCommand();
+		else
+			this.pushSymbols();
+		
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
+	}
+	private pushNumber(): void
+	{
+		var t: Token = null;
+		var input = this.currentInput;
+
+		if (input.match("[0-9]+(\.[0-9]*)?"))
+		{
+			this.insertToken(new Num(input));
+		}
 	}
 	private pushCommand(): void
 	{
 		var input = this.currentInput;
 		var struct: Structure;
-		var ac = this.activeFormula;
 		var style = FontStyle.Normal;
 
 		switch (input)
@@ -637,31 +582,15 @@ class Greeter
 				struct.elems[1] = new Formula(struct);
 				if (struct.type == StructType.Infer)
 					struct.elems[2] = new Formula(struct);
-
-				var last = this.activeFormula.tokens[this.activeIndex - 1];
-				if (this.activeIndex > 0 && input != "frac"
-					&& !(last instanceof Symbol && (<Symbol> last).str == "&"))
-				{
-					struct.elems[0].insert(0, last);
-					this.activeFormula.remove(this.activeIndex - 1);
-					this.activeFormula = struct.elems[1];
-					this.activeIndex--;
-				}
-				else
-					this.activeFormula = struct.elems[0];
-
-				ac.insert(this.activeIndex, struct);
-				this.activeIndex = 0;
+				this.insertToken(struct, last => input != "frac"
+					&& !(last instanceof Symbol && (<Symbol> last).str == "&"));
 				break;
 			case "^":
 			case "_":
 				struct = new Structure(this.activeFormula,
 					input == "^" ? StructType.Power : StructType.Index);
 				struct.elems[0] = new Formula(struct);
-				this.activeFormula = struct.elems[0];
-
-				ac.insert(this.activeIndex, struct);
-				this.activeIndex = 0;
+				this.insertToken(struct);
 				break;
 			case "matrix":
 			case "pmatrix":
@@ -671,19 +600,14 @@ class Greeter
 			case "Vmatrix":
 				struct = new Matrix(this.activeFormula, 1, 1);
 				struct.elems[0] = new Formula(struct);
-
 				var br = this.keywords[input];
-				if (br == "")
-					ac.insert(this.activeIndex, struct);
-				else
+				if (br != "")
 				{
 					var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
-					ac.insert(this.activeIndex, f);
+					this.insertToken(f);
 					struct.parent = f;
-					f.insert(0, struct);
 				}
-				this.activeFormula = struct.elems[0];
-				this.activeIndex = 0;
+				this.insertToken(struct);
 				break;
 			case "(":
 			case "[":
@@ -695,10 +619,7 @@ class Greeter
 			case "angle":
 			case "sqrt":
 				var br = this.keywords[input];
-				var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
-				this.activeFormula = f;
-				ac.insert(this.activeIndex, f);
-				this.activeIndex = 0;
+				this.insertToken(new Formula(this.activeFormula, br, this.bracketCor[br]));
 				break;
 			case "mathbf":
 			case "mathrm":
@@ -706,10 +627,7 @@ class Greeter
 			case "mathfrak":
 			case "mathbb":
 			case "mathtt":
-				var f = new Formula(this.activeFormula, "", "", LaTeX.styles[input]);
-				this.activeFormula = f;
-				ac.insert(this.activeIndex, f);
-				this.activeIndex = 0;
+				this.insertToken(new Formula(this.activeFormula, "", "", LaTeX.styles[input]));
 				break;
 			default:
 				if (input in this.keywords &&
@@ -718,18 +636,14 @@ class Greeter
 					struct = new BigOpr(this.activeFormula, this.keywords[input]);
 					struct.elems[0] = new Formula(struct);
 					struct.elems[1] = new Formula(struct);
-					this.activeFormula = struct.elems[0];
-
-					ac.insert(this.activeIndex, struct);
-					this.activeIndex = 0;
+					this.insertToken(struct);
 				}
 				else
 				{
 					var s = (input in this.keywords)
 						? new Symbol(this.keywords[input], false)
 						: new Symbol(input, this.inputType == InputType.String);
-					this.activeFormula.insert(this.activeIndex, s);
-					this.activeIndex++;
+					this.insertToken(s);
 				}
 				break;
 		}
@@ -753,30 +667,139 @@ class Greeter
 
 		for (var i = 0; i < input.length; i++)
 		{
-			var c = input[i];
-
-			t = new Symbol(c, this.inputType == InputType.String);
-			this.activeFormula.insert(this.activeIndex, t);
-			this.activeIndex++;
+			t = new Symbol(input[i], this.inputType == InputType.String);
+			this.insertToken(t);
 		}
 
 		if (t.str in this.bracketCor)
-			this.activeFormula.insert(this.activeIndex + 1, new Symbol(this.bracketCor[t.str], false));
-
-		this.currentInput = "";
-		this.inputType = InputType.Empty;
-	}
-	private tryParseNumber(s: string): Token
-	{
-		var t: Token = null;
-
-		if (s.match("[0-9]+(\.[0-9]*)?"))
 		{
-			t = new Num(s);
+			this.insertToken(new Symbol(this.bracketCor[t.str], false));
+			this.activeIndex--;
+		}
+	}
+
+	//////////////////////////////////////
+	/*  activeFormula transition		*/
+	//////////////////////////////////////
+	private transferFormula(forward: boolean, target?: Formula): boolean
+	{
+		var adj: Formula;
+		var p = this.activeFormula.parent;
+
+		if (p !== null)
+		{
+			if (target)
+				adj = target;
+			else
+			{
+				adj = (forward ? p.next : p.prev)(this.activeFormula);
+				if (adj === null)
+					return false;
+			}
+
+			this.activeFormula = adj;
+			this.activeIndex = (forward ? 0 : adj.count());
+
+			return true;
 		}
 
-		return t;
+		return false;
 	}
+	private leaveFormula(forward: boolean): boolean
+	{
+		var t: TokenSeq = this.activeFormula;
+
+		if (t.parent instanceof Structure)
+			t = t.parent;
+
+		if (t.parent instanceof Formula)
+		{
+			var f = <Formula> t.parent;
+			this.activeIndex = f.tokens.indexOf(t) + (forward ? 1 : 0);
+			if (this.markedIndex >= 0)
+				this.markedIndex = this.activeIndex + (forward ? 1 : -1);
+			this.activeFormula = f;
+
+			return true;
+		}
+
+		return false;
+	}
+	private enterFormula(forward: boolean): boolean
+	{
+		var dest = this.activeFormula.tokens[this.activeIndex + (forward ? 0 : -1)];
+
+		if (this.markedIndex < 0 && dest && (dest instanceof Structure || dest instanceof Formula))
+		{
+			if (dest instanceof Structure)
+			{
+				var s = <Structure> dest;
+				this.activeFormula = <Formula> s.token(forward ? 0 : s.elems.length - 1);
+			}
+			else
+				this.activeFormula = <Formula> dest;
+
+			this.activeIndex = forward ? 0 : this.activeFormula.count();
+
+			return true;
+		}
+
+		return false;
+	}
+
+	//////////////////////////////////////
+	/*  activeFormula editing			*/
+	//////////////////////////////////////
+	private insertToken(t: Token, capture?: (last: Token) => boolean): void
+	{
+		console.log("insert " + t.toString() + " at " + this.activeIndex + (capture ? " with capture" : ""));
+
+		var captured = false;
+
+		if (t instanceof Structure)
+		{
+			var struct = <Structure> t;
+			var last: Token;
+
+			if (this.activeIndex > 0 && capture
+				&& capture(last = this.activeFormula.tokens[this.activeIndex - 1]))
+			{
+				captured = true;
+				struct.elems[0].insert(0, last);
+				this.removeToken(this.activeIndex - 1, 1);
+			}
+		}
+
+		this.activeFormula.insert(this.activeIndex, t);
+
+		if (t instanceof Structure || t instanceof Formula)
+		{
+			this.enterFormula(true);
+			if (captured)
+				this.moveNext();
+		}
+		else
+			this.activeIndex++;
+	}
+	// "paste" method rewrites token's parent
+	private pasteToken(t: Token[]): void
+	{
+		console.log("paste " + t.toString());
+
+		this.activeFormula.paste(this.activeIndex, t);
+		this.activeIndex += t.length;
+	}
+	private removeToken(i: number, count: number): void
+	{
+		console.log("remove " + count + " at " + i);
+
+		this.activeFormula.remove(i, count);
+		this.activeIndex = i;
+	}
+
+	//////////////////////////////////////
+	/*  formula output					*/
+	//////////////////////////////////////
 	private outputToken(q: JQuery, t: Token): JQuery
 	{
 		var e: JQuery;
