@@ -25,7 +25,7 @@ interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
 interface RecordCreAnn { type: RecordType; index: number; insert: boolean; contents: Token[]; }
 interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
 
-class Greeter
+class Application
 {
 	private field: JQuery;
 	private active: JQuery;
@@ -586,7 +586,7 @@ class Greeter
 				if (t instanceof Structure || t instanceof Formula)
 					dest = <TokenSeq> t;
 				else
-					console.error("[Greeter.undo] inconsistent transfer record");
+					console.error("[Application.undo] inconsistent transfer record");
 			}
 
 			i--;
@@ -595,7 +595,7 @@ class Greeter
 			return;
 
 		if (!(dest instanceof Formula))
-			console.error("[Greeter.undo] inconsistent transfer records");
+			console.error("[Application.undo] inconsistent transfer records");
 
 		this.activeFormula = <Formula> dest;
 
@@ -619,7 +619,7 @@ class Greeter
 			var em = <RecordEditMatrix> this.records[i];
 
 			if (!(this.activeFormula.parent instanceof Matrix))
-				console.error("[Greeter.undo] incosistent record");
+				console.error("[Application.undo] incosistent record");
 
 			var m = <Matrix> this.activeFormula.parent;
 
@@ -1022,7 +1022,7 @@ class Greeter
 			q.append(e);
 		}
 		else
-			console.error("[Greeter.outputToken] unexpected argument : " + t);
+			console.error("[Application.outputToken] unexpected argument : " + t);
 
 		t.renderedElem = e;
 
@@ -1040,7 +1040,7 @@ class Greeter
 			case FontStyle.BlackBoard:	table = Unicode.DoubleStruck; break;
 			case FontStyle.Roman:		table = Unicode.SansSerif; break;
 			case FontStyle.Typewriter:	table = Unicode.Monospace; break;
-			default: console.error("[Greeter.transStyle] unexpected font style : " + style);
+			default: console.error("[Application.transStyle] unexpected font style : " + style);
 		}
 
 		var r = "";
@@ -1215,9 +1215,9 @@ class Greeter
 	}
 }
 
-var greeter;
+var app;
 
 window.onload = () =>
 {
-	greeter = new Greeter($("#field"), $("#latex"), $("#candy"), $("#proofMode"));
+	app = new Application($("#field"), $("#latex"), $("#candy"), $("#proofMode"));
 };
