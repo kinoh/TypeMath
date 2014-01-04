@@ -14,6 +14,17 @@ enum InputType
 	String
 }
 
+enum RecordType
+{
+	Transfer,
+	CreAnn,
+	EditMatrix
+}
+interface Record { type: RecordType; index: number; }
+interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
+interface RecordCreAnn { type: RecordType; index: number; insert: boolean; contents: Token[]; }
+interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
+
 class Greeter
 {
 	private field: JQuery;
@@ -25,7 +36,7 @@ class Greeter
 	private _status: JQuery;
 	private _logText = "";
 	private _enableLog = false;
-	private _enableStatus = false;
+	private _enableStatus = !false;
 
 	private formula = new Formula(null);
 	private activeFormula = this.formula;
@@ -39,6 +50,7 @@ class Greeter
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
+	private records: Record[] = [];
 
 	public candMax = 16;
 
@@ -142,7 +154,13 @@ class Greeter
 				"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
 				this.inputType == InputType.Number ? "Number" :
 				this.inputType == InputType.String ? "String" : "Symbol"),
-				"clipboard     = " + this.clipboard.toString()].join("\n"));
+				"clipboard     = " + this.clipboard.toString(),
+				"records       = " + this.records.map(this.writeRecord).join("\n")
+			].join("\n"));
+	}
+	private writeRecord(r: Record)
+	{
+		return Object.keys(r).map(p => p + ":" + r[p]).join(", ");
 	}
 
 	//////////////////////////////////////
@@ -254,6 +272,14 @@ class Greeter
 				{
 					var m = <Matrix> this.activeFormula.parent;
 					(key == ControlKey.Right ? m.extend : m.shrink)(true);
+
+					var rec: RecordEditMatrix = {
+						type: RecordType.EditMatrix,
+						index: this.activeIndex,
+						extend: key == ControlKey.Right,
+						horizontal: true
+					};
+					this.records.push(rec);
 				}
 				else
 					this.moveHorizontal(key == ControlKey.Right);
@@ -266,6 +292,14 @@ class Greeter
 				{
 					var m = <Matrix> this.activeFormula.parent;
 					(key == ControlKey.Down ? m.extend : m.shrink)(false);
+
+					var rec: RecordEditMatrix = {
+						type: RecordType.EditMatrix,
+						index: this.activeIndex,
+						extend: key == ControlKey.Down,
+						horizontal: false
+					};
+					this.records.push(rec);
 				}
 				else if (this.currentInput != "")
 					this.changeCandidate(key == ControlKey.Down);
@@ -329,6 +363,9 @@ class Greeter
 			case "v":
 				if (this.clipboard != null)
 					this.pasteToken(this.clipboard);
+				break;
+			case "z":
+				this.undo();
 				break;
 		}
 
@@ -532,6 +569,66 @@ class Greeter
 		});
 	}
 
+	private undo(): void
+	{
+		var i = this.records.length - 1;
+		var dest: TokenSeq = this.activeFormula;
+
+		while (i >= 0 && this.records[i].type == RecordType.Transfer)
+		{
+			var tr = <RecordTransfer> this.records[i];
+
+			if (tr.deeper)
+				dest = dest.parent;
+			else
+			{
+				var t = dest.token(tr.index);
+				if (t instanceof Structure || t instanceof Formula)
+					dest = <TokenSeq> t;
+				else
+					console.error("[Greeter.undo] inconsistent transfer record");
+			}
+
+			i--;
+		}
+		if (i < 0)
+			return;
+
+		if (!(dest instanceof Formula))
+			console.error("[Greeter.undo] inconsistent transfer records");
+
+		this.activeFormula = <Formula> dest;
+
+		if (this.records[i].type == RecordType.CreAnn)
+		{
+			var ca = <RecordCreAnn> this.records[i];
+
+			if (ca.insert)
+			{
+				this.activeFormula.remove(ca.index, ca.contents.length);
+				this.activeIndex = ca.index;
+			}
+			else
+			{
+				this.activeFormula.paste(ca.index, ca.contents);
+				this.activeIndex = ca.index + ca.contents.length;
+			}
+		}
+		else if (this.records[i].type == RecordType.EditMatrix)
+		{
+			var em = <RecordEditMatrix> this.records[i];
+
+			if (!(this.activeFormula.parent instanceof Matrix))
+				console.error("[Greeter.undo] incosistent record");
+
+			var m = <Matrix> this.activeFormula.parent;
+
+			(em.extend ? m.shrink : m.extend)(em.horizontal);
+		}
+
+		this.records.splice(i, this.records.length - i + 1);
+	}
+
 	//////////////////////////////////////
 	/*  input interpretation			*/
 	//////////////////////////////////////
@@ -697,6 +794,19 @@ class Greeter
 					return false;
 			}
 
+			var rec1: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: this.activeFormula.parent.indexOf(this.activeFormula),
+				deeper: false
+			};
+			var rec2: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: p.indexOf(adj),
+				deeper: true
+			};
+			this.records.push(rec1);
+			this.records.push(rec2);
+
 			this.activeFormula = adj;
 			this.activeIndex = (forward ? 0 : adj.count());
 
@@ -710,11 +820,28 @@ class Greeter
 		var t: TokenSeq = this.activeFormula;
 
 		if (t.parent instanceof Structure)
+		{
+			var rec0: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: (<Structure> t.parent).indexOf(t),
+				deeper: false
+			};
+			this.records.push(rec0);
+
 			t = t.parent;
+		}
 
 		if (t.parent instanceof Formula)
 		{
 			var f = <Formula> t.parent;
+
+			var rec: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: f.indexOf(t),
+				deeper: false
+			};
+			this.records.push(rec);
+
 			this.activeIndex = f.tokens.indexOf(t) + (forward ? 1 : 0);
 			if (this.markedIndex >= 0)
 				this.markedIndex = this.activeIndex + (forward ? 1 : -1);
@@ -727,14 +854,30 @@ class Greeter
 	}
 	private enterFormula(forward: boolean): boolean
 	{
-		var dest = this.activeFormula.tokens[this.activeIndex + (forward ? 0 : -1)];
+		var i = this.activeIndex + (forward ? 0 : -1);
+		var dest = this.activeFormula.tokens[i];
 
 		if (this.markedIndex < 0 && dest && (dest instanceof Structure || dest instanceof Formula))
 		{
+			var rec: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: i,
+				deeper: true
+			};
+			this.records.push(rec);
+
 			if (dest instanceof Structure)
 			{
 				var s = <Structure> dest;
-				this.activeFormula = <Formula> s.token(forward ? 0 : s.elems.length - 1);
+				var j = forward ? 0 : s.elems.length - 1;
+				this.activeFormula = <Formula> s.token(j);
+
+				var rec2: RecordTransfer = {
+					type: RecordType.Transfer,
+					index: j,
+					deeper: true
+				};
+				this.records.push(rec2);
 			}
 			else
 				this.activeFormula = <Formula> dest;
@@ -772,6 +915,14 @@ class Greeter
 
 		this.activeFormula.insert(this.activeIndex, t);
 
+		var rec: RecordCreAnn = {
+			type: RecordType.CreAnn,
+			index: this.activeIndex,
+			insert: true,
+			contents: [t.clone(null)]
+		};
+		this.records.push(rec);
+
 		if (t instanceof Structure || t instanceof Formula)
 		{
 			this.enterFormula(true);
@@ -787,13 +938,31 @@ class Greeter
 		console.log("paste " + t.toString());
 
 		this.activeFormula.paste(this.activeIndex, t);
+
+		var rec: RecordCreAnn = {
+			type: RecordType.CreAnn,
+			index: this.activeIndex,
+			insert: true,
+			contents: t.map(x => x.clone(null))
+		};
+		this.records.push(rec);
+
 		this.activeIndex += t.length;
 	}
 	private removeToken(i: number, count: number): void
 	{
 		console.log("remove " + count + " at " + i);
 
-		this.activeFormula.remove(i, count);
+		var removed = this.activeFormula.remove(i, count);
+
+		var rec: RecordCreAnn = {
+			type: RecordType.CreAnn,
+			index: i,
+			insert: false,
+			contents: removed
+		};
+		this.records.push(rec);
+
 		this.activeIndex = i;
 	}
 

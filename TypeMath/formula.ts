@@ -66,6 +66,7 @@ interface TokenSeq
 	token(i: number): Token;
 	next(t: Token): any;
 	prev(t: Token): any;
+	indexOf(t: Token): number;
 
 	/* Token method */
 	clone(parent: TokenSeq): Token;
@@ -141,7 +142,14 @@ class Structure extends Token /* TokenSeq */
 			return null;
 		return this.elems[i + 1];
 	}
-	
+	public indexOf = (t: Token) =>
+	{
+		if (t instanceof Formula)
+			return this.elems.indexOf(<Formula> t);
+		else
+			return -1;
+	}
+
 	public clone(parent: TokenSeq): Structure
 	{
 		var s = new Structure(parent, this.type);
@@ -331,15 +339,19 @@ class Formula extends Token /* TokenSeq */
 			return null;
 		return this.tokens[i + 1];
 	}
+	public indexOf = (t: Token) =>
+	{
+		return this.tokens.indexOf(t);
+	}
 
 	public insert(i: number, t: Token): void
 	{
 		this.tokens.splice(i, 0, t);
 	}
 
-	public remove(i: number, count?: number): void
+	public remove(i: number, count?: number): Token[]
 	{
-		this.tokens.splice(i, count != undefined ? count : 1);
+		return this.tokens.splice(i, count != undefined ? count : 1);
 	}
 
 	public copy(a: number, b: number): Token[]
