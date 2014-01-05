@@ -13,7 +13,7 @@ class LaTeX
 		"": ""
 	};
 
-	public static styles = {
+	public static styles: { [key: string]: FontStyle } = {
 		"mathbf": FontStyle.Bold,
 		"mathrm": FontStyle.Roman,
 		"mathscr": FontStyle.Script,
@@ -23,6 +23,17 @@ class LaTeX
 	};
 
 	public static symbols: { [key: string]: string };
+
+	public static accentSymbols: { [key: string]: string } = {
+		"←": "overleftarrow",
+		"→": "overrightarrow",
+		"～": "widetilde",
+		"＾": "widehat",
+		"‾": "overline",
+		"_": "underline",
+		"︷": "overbrace",
+		"︸": "underbrace"
+	};
 
 	private static macro(n: string, ...args: Token[]): string
     {
@@ -140,6 +151,10 @@ class LaTeX
 				return LaTeX.transSymbol((<BigOpr> s).operator, indent)
 					+ "_{" + LaTeX.trans(s.elems[0])
 					+ "}^{" + LaTeX.trans(s.elems[1]) + "}";
+				break;
+			case StructType.Accent:
+				return "\\" + this.accentSymbols[(<Accent> s).symbol]
+					+ "{" + LaTeX.trans(s.elems[0]) + "}";
 				break;
 			default:
 				return "?struct?";

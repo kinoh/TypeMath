@@ -4,6 +4,7 @@
 	box-align: center; -moz-box-align: center; -webkit-box-align: center; -ms-flex-align: center;
 	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
 	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
 	text-align: center;
 }
 
@@ -13,6 +14,7 @@
 	box-align: stretch; -moz-box-align: stretch; -webkit-box-align: stretch; -ms-flex-align: stretch;
 	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
 	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
 	text-align: center;
 }
 .bracket
@@ -27,6 +29,21 @@
 {
 	display: flex; display: -moz-box; display: -webkit-box;
 	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical; -ms-flex-direction: column;
+	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
+}
+
+.reverseOrdered
+{
+	flex-direction: column-reverse; -moz-box-direction: reverse; -webkit-box-direction: reverse; -ms-box-direction: reverse;
+}
+
+.accent
+{
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 100% 100%;
+	margin-bottom: -0.5em;
+	font-size: xx-small;
 }
 
 .variable
@@ -70,6 +87,7 @@
 	box-align: end; -moz-box-align: end; -webkit-box-align: end; -ms-flex-align: end;
 	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
 	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
 }
 .formulaStyled
 {
@@ -81,6 +99,11 @@
 .overline
 {
 	border-top: solid 1px #000;
+}
+
+.underline
+{
+	border-bottom: solid 1px #000;
 }
 
 .label

@@ -80,7 +80,8 @@ enum StructType
 	Power,
 	Index,
 	Matrix,
-	BigOpr
+	BigOpr,
+	Accent
 }
 
 class Structure extends Token /* TokenSeq */
@@ -108,6 +109,7 @@ class Structure extends Token /* TokenSeq */
 				break;
 			case StructType.Power:
 			case StructType.Index:
+			case StructType.Accent:
 				count = 1;
 				break;
 			default:
@@ -282,6 +284,42 @@ class BigOpr extends Structure
 	{
 		super(parent, StructType.BigOpr);
 		this.operator = operator;
+	}
+
+	public clone(parent: TokenSeq): Structure
+	{
+		var s = new BigOpr(parent, this.operator);
+		this.elems.forEach((f, i) =>
+		{
+			s.elems[i] = f.clone(s);
+		});
+		return s;
+	}
+}
+class Accent extends Structure
+{
+	symbol: string;
+	above: boolean;
+	
+	constructor(parent: TokenSeq, symbol: string, above: boolean)
+	{
+		super(parent, StructType.Accent);
+		this.symbol = symbol;
+		this.above = above;
+	}
+
+	public clone(parent: TokenSeq): Structure
+	{
+		var s = new Accent(parent, this.symbol, this.above);
+		this.elems.forEach((f, i) =>
+		{
+			s.elems[i] = f.clone(s);
+		});
+		return s;
+	}
+	public toString(): string
+	{
+		return "Accent" + this.symbol + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
 	}
 }
 

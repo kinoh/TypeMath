@@ -199,7 +199,21 @@ class GlyphFactory
 		this.data["⌋"] = this.data["⌊"].reflect();
 		this.data["⌉"] = this.data["⌈"].reflect();
 		this.data["〉"] = this.data["〈"].reflect();
-    }
+
+		this.data["～"] = new Glyph(64, 24,
+			new Bezier(8, 16, 56, 8, 28, -6, 36, 30, 1, 1, 4));
+		this.data["＾"] = new Glyph(64, 24,
+			new Line(8, 16, 32, 8, 1, 3),
+			new Line(32, 8, 56, 16, 3, 1));
+		this.data["→"] = new Glyph(64, 24,
+			new Line(4, 12, 60, 12, 1, 1),
+			new Bezier(60, 12, 46, 6, 50, 12, 54, 10, 0, 0, 5),
+			new Bezier(60, 12, 46, 18, 50, 12, 54, 14, 0, 0, 5));
+
+		this.data["←"] = this.data["→"].reflect();
+		this.data["︷"] = this.data["{"].turnRight();
+		this.data["︸"] = this.data["}"].turnRight();
+}
 
     public generate(char: string): string
     {

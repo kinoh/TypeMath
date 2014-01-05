@@ -118,12 +118,20 @@ class Application
 	}
 	private enrichKeywords(): void
 	{
-		for (var c in LaTeX.symbols)
+		var dic: { [key: string]: any }[] = [LaTeX.symbols, LaTeX.accentSymbols];
+
+		for (var i = 0; i < dic.length; i++)
 		{
-			var key = LaTeX.symbols[c];
-			if (!(key in this.keywords))
-				this.keywords[key] = c;
+			for (var c in dic[i])
+			{
+				var key = dic[i][c];
+				if (!(key in this.keywords))
+					this.keywords[key] = c;
+			}
 		}
+
+		for (var c in LaTeX.styles)
+			this.keywords[c] = "";
 	}
 	private render(): void
 	{
@@ -733,6 +741,16 @@ class Application
 			case "check":
 				this.insertToken(new Formula(this.activeFormula, "", this.keywords[input]));
 				break;
+			case "widetilde":
+			case "widehat":
+			case "overleftarrow":
+			case "overrightarrow":
+			case "overline":
+			case "underline":
+			case "overbrace":
+			case "underbrace":
+				this.insertToken(new Accent(this.activeFormula, this.keywords[input], input != "underline" && input != "underbrace"));
+				break;
 			default:
 				if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
@@ -1121,6 +1139,23 @@ class Application
 					this.outputToken(e, s.token(0)).addClass("subFormula");
 				}
 				break;
+
+			case StructType.Accent:
+				var a = <Accent> s;
+				if (a.symbol == "‾")
+					e = this.outputFormula(a.elems[0]).addClass("overline");
+				else if (a.symbol == "_")
+					e = this.outputFormula(a.elems[0]).addClass("underline");
+				else
+				{
+					e = $("<div/>").addClass("frac");
+					if (!a.above)
+						e.addClass("reverseOrdered");
+					var ac = this.makeGlyph(a.symbol).addClass("accent").text(Unicode.EnSpace);
+					e.append(ac);
+					this.outputToken(e, s.token(0));
+				}
+				break;
 		}
 
 		return e;
@@ -1141,7 +1176,7 @@ class Application
 			var braced = $("<div/>").addClass("embraced");
 
 			if (f.prefix != "")
-				braced.append(this.makeBracket(f.prefix));
+				braced.append(this.makeGlyph(f.prefix).addClass("bracket"));
 
 			var inner = this.outputFormulaInner(f);
 			if (f.prefix == "√")
@@ -1155,7 +1190,7 @@ class Application
 				braced.addClass("formulaStyled");
 			}
 			else if (f.suffix != "")
-				braced.append(this.makeBracket(f.suffix));
+				braced.append(this.makeGlyph(f.suffix).addClass("bracket"));
 
 			r = braced;
 		}
@@ -1170,9 +1205,9 @@ class Application
 
 		return r;
 	}
-	private makeBracket(char: string): JQuery
+	private makeGlyph(char: string): JQuery
 	{
-		var q = $("<div/>").addClass("bracket");
+		var q = $("<div/>");
 		var dat = this.glyph.generate(char);
 
 		if (dat != "")
