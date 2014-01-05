@@ -46,6 +46,7 @@ class Application
 	private candCount = 0;
 	private candSelected = "";
 	private currentInput = "";
+	private postInput = "";
 	private inputType = InputType.Empty;
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
@@ -62,7 +63,6 @@ class Application
 		"∑", "∏", "∐", "⋂", "⋃", "⨄", "⨆", "⋁", "⋀", "⨁", "⨂", "⨀",
 		"∫", "∮", "∬", "∭", "⨌"
 	];
-	private accents: string[] = ["̀", "́", "̂", "̃", "̄", "̆", "̇", "̈", "̊", "̌"];
 
 	private keywords: { [key: string]: string } = {
 		"and": "∧",
@@ -139,7 +139,7 @@ class Application
 		this.outputCurrentStyle = [FontStyle.Normal];
 		this.outputToken(this.field, this.formula);
 
-		this.active.text(this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace);
+		this.active.text((this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput);
 		this.showCandidate();
 
 		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
@@ -640,7 +640,7 @@ class Application
 		var t: Token = null;
 		var input = this.currentInput;
 
-		if (this.inputType == InputType.Number)
+		if (this.inputType == InputType.Number && this.postInput == "")
 			this.pushNumber();
 		// single character will not interpreted (unless, you cannot input "P"!)
 		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
@@ -739,7 +739,7 @@ class Application
 			case "ddot":
 			case "mathring":
 			case "check":
-				this.insertToken(new Formula(this.activeFormula, "", this.keywords[input]));
+				this.postInput = this.keywords[input];
 				break;
 			case "widetilde":
 			case "widehat":
@@ -763,15 +763,13 @@ class Application
 				else
 				{
 					var s = (input in this.keywords)
-						? new Symbol(this.keywords[input], false)
+						? new Symbol(this.keywords[input] + this.postInput, false)
 						: new Symbol(input, this.inputType == InputType.String);
 					this.insertToken(s);
+					this.postInput = "";
 				}
 				break;
 		}
-
-		this.currentInput = "";
-		this.inputType = InputType.Empty;
 	}
 	private pushSymbols(): void
 	{
@@ -789,7 +787,7 @@ class Application
 
 		for (var i = 0; i < input.length; i++)
 		{
-			t = new Symbol(input[i], this.inputType == InputType.String);
+			t = new Symbol(input[i] + this.postInput, this.inputType == InputType.String);
 			this.insertToken(t);
 		}
 
@@ -798,6 +796,8 @@ class Application
 			this.insertToken(new Symbol(this.bracketCor[t.str], false));
 			this.activeIndex--;
 		}
+
+		this.postInput = "";
 	}
 
 	//////////////////////////////////////
@@ -1183,13 +1183,7 @@ class Application
 				inner.addClass("overline");
 			braced.append(inner);
 
-			if (this.accents.indexOf(f.suffix) >= 0)
-			{
-				var last = inner.children(":last");
-				last.text(last.text() + f.suffix);
-				braced.addClass("formulaStyled");
-			}
-			else if (f.suffix != "")
+			if (f.suffix != "")
 				braced.append(this.makeGlyph(f.suffix).addClass("bracket"));
 
 			r = braced;

@@ -35,6 +35,8 @@ class LaTeX
 		"︸": "underbrace"
 	};
 
+	private static combiningAccents: string[] = ["̀", "́", "̂", "̃", "̄", "̆", "̇", "̈", "̊", "̌"];
+
 	private static macro(n: string, ...args: Token[]): string
     {
 		return "\\" + n + "{ " + args.map(t => LaTeX.trans(t)).join(" }{ ") + " }";
@@ -88,6 +90,12 @@ class LaTeX
 	}
 	private static transSymbol(str: string, indent: string): string
 	{
+		var s = str.charAt(str.length - 1);
+		if (LaTeX.combiningAccents.indexOf(s) >= 0)
+		{
+			return "\\" + LaTeX.symbols[s] + "{" + LaTeX.transSymbol(str.slice(0, -1), indent) + "}";
+		}
+
 		if (this.proofMode)
 		{
 			switch (str)
@@ -197,11 +205,6 @@ class LaTeX
 		{
 			pre = "\\sqrt{ ";
 			suf = " }";
-		}
-		else if (f.prefix == "" && f.suffix in LaTeX.symbols)	// incomplete condition
-		{
-			pre = "\\" + LaTeX.symbols[f.suffix] + "{";
-			suf = "}";
 		}
 		else
 		{
