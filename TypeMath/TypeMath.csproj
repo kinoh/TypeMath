@@ -23,6 +23,8 @@
     <Content Include="formula.css" />
     <Content Include="formula.ts" />
     <Content Include="glyph.ts" />
+    <Content Include="glyphEdit.html" />
+    <Content Include="glyphEdit.js" />
     <Content Include="keyboard.ts" />
     <Content Include="jquery-1.10.0.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
