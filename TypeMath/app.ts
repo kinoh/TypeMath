@@ -952,7 +952,7 @@ class Application
 		{
 			this.enterFormula(true);
 			if (captured)
-				this.moveNext();
+				this.transferFormula(true);
 		}
 		else
 			this.activeIndex++;
@@ -1003,7 +1003,6 @@ class Application
 			var v = <Symbol> t;
 			var str = v.str;
 			var style = this.outputCurrentStyle[0];
-			var cls;
 
 			if (style != FontStyle.Normal)
 				str = this.transStyle(str, style);
@@ -1087,15 +1086,16 @@ class Application
 		{
 			case StructType.Frac:
 			case StructType.Infer:
-				var cls = s.type == StructType.Frac ? "math" : "formula";
 				e = $("<div/>").addClass("frac");
-
-				var upper = s.token(s.type != StructType.Infer ? 0 : 1);
-				var lower = s.token(s.type != StructType.Infer ? 1 : 0);
-
-				this.outputToken(e, upper);
-				this.outputToken(e, lower).addClass("overline");
-
+				var prim = this.outputToken(e, s.token(0));
+				var seco = this.outputToken(e, s.token(1));
+				if (s.type == StructType.Infer)
+				{
+					e.addClass("reverseOrdered");
+					prim.addClass("overline");
+				}
+				else
+					seco.addClass("overline");
 				break;
 
 			case StructType.Power:
