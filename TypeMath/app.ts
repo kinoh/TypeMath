@@ -39,7 +39,7 @@ class Application
 	private _enableStatus = !false;
 
 	private formula = new Formula(null);
-	private activeFormula = this.formula;
+	private activeField: TokenSeq = this.formula;
 	private activeIndex = 0;
 	private markedIndex = -1;
 	private candIndex = -1;
@@ -147,7 +147,7 @@ class Application
 		if (this._enableStatus)
 			this._status.text([
 				"formula       = " + this.formula.toString(),
-				"activeFormula = " + this.activeFormula.toString(),
+				"activeFormula = " + this.activeField.toString(),
 				"activeIndex   = " + this.activeIndex.toString(),
 				"markedIndex   = " + this.markedIndex.toString(),
 				"candIndex     = " + this.candIndex.toString(),
@@ -185,6 +185,10 @@ class Application
 		}
 
 		this.markedIndex = -1;
+
+		if (!(this.activeField instanceof Formula))
+			this.enterFormula(true);
+
 		var t = this.getInputType(key);
 
 		if (this.inputType == InputType.Empty)
@@ -231,12 +235,17 @@ class Application
 			case ControlKey.Enter:
 				if (this.candIndex >= 0)
 					this.decideCandidate();
-				else if (this.activeIndex > 0
-					&& this.activeFormula.tokens[this.activeIndex - 1] instanceof Symbol
-					&& (<Symbol> this.activeFormula.tokens[this.activeIndex - 1]).str == "=")
+				else if (this.activeField instanceof Formula)
 				{
-					var res = Calc.eval(this.activeFormula.tokens.slice(0, this.activeIndex - 1));
-					this.pasteToken([res !== null ? res : new Symbol("?", false)]);
+					var f = <Formula> this.activeField;
+
+					if (this.activeIndex > 0
+						&& f.tokens[this.activeIndex - 1] instanceof Symbol
+						&& (<Symbol> f.tokens[this.activeIndex - 1]).str == "=")
+					{
+						var res = Calc.eval(f.tokens.slice(0, this.activeIndex - 1));
+						this.pasteToken([res !== null ? res : new Symbol("?", false)]);
+					}
 				}
 				break;
 			case ControlKey.Space:
@@ -249,11 +258,11 @@ class Application
 					}
 					else
 					{
-						if (this.activeFormula.parent instanceof Structure)
+						if (this.activeField.parent instanceof Structure)
 						{
-							var p = <Structure> this.activeFormula.parent;
+							var p = <Structure> this.activeField.parent;
 							if (p.type == StructType.Infer
-								&& p.elems[1] == this.activeFormula)
+								&& p.elems[1] == this.activeField)
 							{
 								this.inputType = InputType.String;
 								this.currentInput = "&";
@@ -269,11 +278,16 @@ class Application
 				break;
 			case ControlKey.Left:
 			case ControlKey.Right:
-				if (e.ctrlKey
-					&& this.activeFormula.parent != null
-					&& this.activeFormula.parent instanceof Matrix)
+				if (e.ctrlKey)
 				{
-					var m = <Matrix> this.activeFormula.parent;
+					var m: Matrix;
+					if (this.activeField instanceof Matrix)
+						m = <Matrix> this.activeField;
+					else if (this.activeField.parent instanceof Matrix)
+						m = <Matrix> this.activeField.parent;
+					else
+						break;
+
 					(key == ControlKey.Right ? m.extend : m.shrink)(true);
 
 					var rec: RecordEditMatrix = {
@@ -289,11 +303,16 @@ class Application
 				break;
 			case ControlKey.Up:
 			case ControlKey.Down:
-				if (e.ctrlKey
-					&& this.activeFormula.parent != null
-					&& this.activeFormula.parent instanceof Matrix)
+				if (e.ctrlKey)
 				{
-					var m = <Matrix> this.activeFormula.parent;
+					var m: Matrix;
+					if (this.activeField instanceof Matrix)
+						m = <Matrix> this.activeField;
+					else if (this.activeField.parent instanceof Matrix)
+						m = <Matrix> this.activeField.parent;
+					else
+						break;
+
 					(key == ControlKey.Down ? m.extend : m.shrink)(false);
 
 					var rec: RecordEditMatrix = {
@@ -318,18 +337,15 @@ class Application
 				}
 				else if (this.markedIndex >= 0)
 				{
-					var i = Math.min(this.markedIndex, this.activeIndex);
-					this.removeToken(i, Math.abs(this.markedIndex - this.activeIndex));
+					this.removeToken(this.markedIndex, this.activeIndex);
 					this.markedIndex = -1;
 				}
 				else if (this.activeIndex > 0)
 				{
-					this.removeToken(this.activeIndex - 1, 1);
+					this.removeToken(this.activeIndex - 1, this.activeIndex);
 				}
 				break;
 			case ControlKey.Shift:
-				if (this.activeFormula.count() == 0)
-					break;
 				if (this.markedIndex < 0)
 					this.markedIndex = this.activeIndex;
 				else
@@ -348,18 +364,12 @@ class Application
 		switch (key)
 		{
 			case "c":
-				if (this.markedIndex >= 0)
-				{
-					this.clipboard = this.activeFormula.copy(this.markedIndex, this.activeIndex);
-					this.markedIndex = -1;
-				}
-				break;
 			case "x":
 				if (this.markedIndex >= 0)
 				{
-					this.clipboard = this.activeFormula.copy(this.markedIndex, this.activeIndex);
-					this.removeToken(Math.min(this.markedIndex, this.activeIndex),
-						Math.abs(this.markedIndex - this.activeIndex));
+					this.clipboard = this.activeField.copy(this.markedIndex, this.activeIndex);
+					if (key == "x")
+						this.removeToken(this.markedIndex, this.activeIndex);
 					this.markedIndex = -1;
 				}
 				break;
@@ -386,7 +396,7 @@ class Application
 	}
 	private moveNext(): void
 	{
-		if (this.activeIndex == this.activeFormula.count())
+		if (this.activeIndex == this.activeField.count())
 		{
 			if (this.transferFormula(true))
 				return;
@@ -408,33 +418,56 @@ class Application
 
 		var dif = forward ? 1 : -1;
 
-		if (this.activeIndex + dif >= 0
-			&& this.activeIndex + dif <= this.activeFormula.count())
+		if (this.activeField instanceof Formula)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 		{
-			if (!this.enterFormula(forward))
-				this.activeIndex += dif;
-			return;
+			if (this.activeIndex + dif >= 0
+				&& this.activeIndex + dif <= this.activeField.count())
+			{
+				if (!this.enterFormula(forward))
+					this.activeIndex += dif;
+				return;
+			}
+		}
+		else if (this.activeField instanceof Matrix)
+		{
+			var m = <Matrix> this.activeField;
+			var c = this.activeIndex % m.cols;
+
+			if (forward && c < m.cols - 1 || !forward && c > 0)
+			{
+				this.activeIndex += (forward ? 1 : -1);
+				return;
+			}
 		}
 
-		var p = this.activeFormula.parent;
+		var p = this.activeField.parent;
 
 		if (p == null)
+		{
 			return;
+		}
+		else if (p instanceof Matrix)
+		{
+			var m = <Matrix> p;
+			var a = m.around(<Formula> this.activeField, true, forward);
+
+			if (a != null)
+			{
+				if (this.markedIndex >= 0)
+				{
+					this.leaveFormula(forward);
+
+					var c = this.activeIndex % m.cols;
+					if (forward && c < m.cols - 1 || !forward && c > 0)
+						this.activeIndex += (forward ? 1 : -1);
+					return;
+				}
+				if (this.transferFormula(forward, a))
+					return;
+			}
+		}
 		else if (p instanceof Structure)
 		{
-			var s = <Structure> p;
-
-			if (s.type == StructType.Matrix)
-			{
-				var m = <Matrix> s;
-				var a = m.around(this.activeFormula, true, forward);
-				if (a != null)
-				{
-					if (this.transferFormula(forward, a))
-						return;
-				}
-			}
-
 			if (this.transferFormula(forward))
 				return;
 		}
@@ -443,11 +476,32 @@ class Application
 	}
 	private moveVertical(upward: boolean): void
 	{
-		if (this.markedIndex >= 0)
-			return;
+		if (this.activeField instanceof Matrix)
+		{
+			var m = <Matrix> this.activeField;
+			var r = Math.floor(this.activeIndex / m.cols);
 
-		var ac: TokenSeq = this.activeFormula;
+			if (upward && r > 0 || !upward && r < m.rows - 1)
+			{
+				this.activeIndex += (upward ? -m.cols : m.cols);
+				return;
+			}
+		}
+
+		var ac = this.activeField;
 		var p = ac.parent;
+
+		if (this.markedIndex >= 0 && p instanceof Matrix)
+		{
+			this.leaveFormula(true);
+
+			var m = <Matrix> p;
+			var r = Math.floor(this.activeIndex / m.cols);
+			if (upward && r > 0 || !upward && r < m.rows - 1)
+				this.activeIndex += (upward ? -m.cols : m.cols);
+			return;
+		}
+
 		while (p != null)
 		{
 			if (p instanceof Structure)
@@ -470,10 +524,10 @@ class Application
 					var a : number[] = [];
 					for (var i = 0; i < neig.tokens.length; i++)
 					{
-						var r = neig.tokens[i].renderedElem[0].getBoundingClientRect();
+						var rect = neig.tokens[i].renderedElem[0].getBoundingClientRect();
 						if (i == 0)
-							a.push(r.left);
-						a.push(r.right);
+							a.push(rect.left);
+						a.push(rect.right);
 					}
 					this.activeIndex = (a.length == 0) ? 0
 						: a.map((x, i) => ({ d: Math.abs(x - x0), index: i }))
@@ -575,7 +629,7 @@ class Application
 	private undo(): void
 	{
 		var i = this.records.length - 1;
-		var dest: TokenSeq = this.activeFormula;
+		var dest: TokenSeq = this.activeField;
 
 		while (i >= 0 && this.records[i].type == RecordType.Transfer)
 		{
@@ -597,10 +651,7 @@ class Application
 		if (i < 0)
 			return;
 
-		if (!(dest instanceof Formula))
-			console.error("[Application.undo] inconsistent transfer records");
-
-		this.activeFormula = <Formula> dest;
+		this.activeField = dest;
 
 		if (this.records[i].type == RecordType.CreAnn)
 		{
@@ -608,23 +659,39 @@ class Application
 
 			if (ca.insert)
 			{
-				this.activeFormula.remove(ca.index, ca.contents.length);
-				this.activeIndex = ca.index;
+				var to: number;
+				if (ca.contents.length == 1 && ca.contents[0] instanceof Matrix
+					&& this.activeField instanceof Matrix)
+				{
+					var a = (<Matrix> this.activeField);
+					var p = a.pos(ca.index);
+					var m = (<Matrix> ca.contents[0]);
+					to = ca.index
+						+ (Math.min(m.rows, a.rows - p.row) - 1) * a.cols
+						+ (Math.min(m.cols, a.cols - p.col) - 1);
+				}
+				else
+					to = ca.index + ca.contents.length;
+
+				dest.remove(ca.index, to);
+				this.activeIndex = Math.min(ca.index, to);
 			}
 			else
 			{
-				this.activeFormula.paste(ca.index, ca.contents);
-				this.activeIndex = ca.index + ca.contents.length;
+				this.activeIndex = dest.paste(ca.index, ca.contents);
 			}
 		}
 		else if (this.records[i].type == RecordType.EditMatrix)
 		{
 			var em = <RecordEditMatrix> this.records[i];
+			var m: Matrix;
 
-			if (!(this.activeFormula.parent instanceof Matrix))
+			if (dest instanceof Matrix)
+				m = <Matrix> dest;
+			else if (dest.parent instanceof Matrix)
+				m = <Matrix> dest.parent;
+			else
 				console.error("[Application.undo] incosistent record");
-
-			var m = <Matrix> this.activeFormula.parent;
 
 			(em.extend ? m.shrink : m.extend)(em.horizontal);
 		}
@@ -676,7 +743,7 @@ class Application
 			case "infer":
 			case "/":
 			case "frac":
-				struct = new Structure(this.activeFormula,
+				struct = new Structure(this.activeField,
 					input == "infer" ? StructType.Infer : StructType.Frac);
 				struct.elems[0] = new Formula(struct);
 				struct.elems[1] = new Formula(struct);
@@ -687,7 +754,7 @@ class Application
 				break;
 			case "^":
 			case "_":
-				struct = new Structure(this.activeFormula,
+				struct = new Structure(this.activeField,
 					input == "^" ? StructType.Power : StructType.Index);
 				struct.elems[0] = new Formula(struct);
 				this.insertToken(struct);
@@ -698,12 +765,12 @@ class Application
 			case "Bmatrix":
 			case "vmatrix":
 			case "Vmatrix":
-				struct = new Matrix(this.activeFormula, 1, 1);
+				struct = new Matrix(this.activeField, 1, 1);
 				struct.elems[0] = new Formula(struct);
 				var br = this.keywords[input];
 				if (br != "")
 				{
-					var f = new Formula(this.activeFormula, br, this.bracketCor[br]);
+					var f = new Formula(this.activeField, br, this.bracketCor[br]);
 					this.insertToken(f);
 					struct.parent = f;
 				}
@@ -719,7 +786,7 @@ class Application
 			case "angle":
 			case "sqrt":
 				var br = this.keywords[input];
-				this.insertToken(new Formula(this.activeFormula, br, this.bracketCor[br]));
+				this.insertToken(new Formula(this.activeField, br, this.bracketCor[br]));
 				break;
 			case "mathbf":
 			case "mathrm":
@@ -727,7 +794,7 @@ class Application
 			case "mathfrak":
 			case "mathbb":
 			case "mathtt":
-				this.insertToken(new Formula(this.activeFormula, "", "", LaTeX.styles[input]));
+				this.insertToken(new Formula(this.activeField, "", "", LaTeX.styles[input]));
 				break;
 			case "grave":
 			case "acute":
@@ -749,13 +816,13 @@ class Application
 			case "underline":
 			case "overbrace":
 			case "underbrace":
-				this.insertToken(new Accent(this.activeFormula, this.keywords[input], input != "underline" && input != "underbrace"));
+				this.insertToken(new Accent(this.activeField, this.keywords[input], input != "underline" && input != "underbrace"));
 				break;
 			default:
 				if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
 				{
-					struct = new BigOpr(this.activeFormula, this.keywords[input]);
+					struct = new BigOpr(this.activeField, this.keywords[input]);
 					struct.elems[0] = new Formula(struct);
 					struct.elems[1] = new Formula(struct);
 					this.insertToken(struct);
@@ -806,7 +873,7 @@ class Application
 	private transferFormula(forward: boolean, target?: Formula): boolean
 	{
 		var adj: Formula;
-		var p = this.activeFormula.parent;
+		var p = this.activeField.parent;
 
 		if (p !== null)
 		{
@@ -814,14 +881,15 @@ class Application
 				adj = target;
 			else
 			{
-				adj = (forward ? p.next : p.prev)(this.activeFormula);
-				if (adj === null)
+				var a = (forward ? p.next : p.prev)(this.activeField);
+				if (!(a instanceof Formula))
 					return false;
+				adj = <Formula> a;
 			}
 
 			var rec1: RecordTransfer = {
 				type: RecordType.Transfer,
-				index: this.activeFormula.parent.indexOf(this.activeFormula),
+				index: this.activeField.parent.indexOf(this.activeField),
 				deeper: false
 			};
 			var rec2: RecordTransfer = {
@@ -832,7 +900,7 @@ class Application
 			this.records.push(rec1);
 			this.records.push(rec2);
 
-			this.activeFormula = adj;
+			this.activeField = adj;
 			this.activeIndex = (forward ? 0 : adj.count());
 
 			return true;
@@ -842,9 +910,9 @@ class Application
 	}
 	private leaveFormula(forward: boolean): boolean
 	{
-		var t: TokenSeq = this.activeFormula;
+		var t: TokenSeq = this.activeField;
 
-		if (t.parent instanceof Structure)
+		if (t.parent instanceof Structure && !(this.markedIndex >= 0 && t.parent instanceof Matrix))
 		{
 			var rec0: RecordTransfer = {
 				type: RecordType.Transfer,
@@ -856,31 +924,37 @@ class Application
 			t = t.parent;
 		}
 
-		if (t.parent instanceof Formula)
+		var f = t.parent;
+		var inFormula = f instanceof Formula;
+
+		var rec: RecordTransfer = {
+			type: RecordType.Transfer,
+			index: f.indexOf(t),
+			deeper: false
+		};
+		this.records.push(rec);
+
+		var index = f.indexOf(t);
+		this.activeIndex = index;
+		if (inFormula && forward)
+			this.activeIndex++;
+		if (this.markedIndex >= 0)
 		{
-			var f = <Formula> t.parent;
-
-			var rec: RecordTransfer = {
-				type: RecordType.Transfer,
-				index: f.indexOf(t),
-				deeper: false
-			};
-			this.records.push(rec);
-
-			this.activeIndex = f.tokens.indexOf(t) + (forward ? 1 : 0);
-			if (this.markedIndex >= 0)
-				this.markedIndex = this.activeIndex + (forward ? 1 : -1);
-			this.activeFormula = f;
-
-			return true;
+			this.markedIndex = index;
+			if (inFormula && !forward)
+				this.markedIndex++;
 		}
+		this.activeField = f;
 
-		return false;
+		return true;
 	}
 	private enterFormula(forward: boolean): boolean
 	{
-		var i = this.activeIndex + (forward ? 0 : -1);
-		var dest = this.activeFormula.tokens[i];
+		var i = this.activeIndex;
+
+		if (this.activeField instanceof Formula && !forward)
+			i--;
+		var dest = this.activeField.token(i);
 
 		if (this.markedIndex < 0 && dest && (dest instanceof Structure || dest instanceof Formula))
 		{
@@ -895,7 +969,7 @@ class Application
 			{
 				var s = <Structure> dest;
 				var j = forward ? 0 : s.elems.length - 1;
-				this.activeFormula = <Formula> s.token(j);
+				this.activeField = <Formula> s.token(j);
 
 				var rec2: RecordTransfer = {
 					type: RecordType.Transfer,
@@ -905,9 +979,9 @@ class Application
 				this.records.push(rec2);
 			}
 			else
-				this.activeFormula = <Formula> dest;
+				this.activeField = <Formula> dest;
 
-			this.activeIndex = forward ? 0 : this.activeFormula.count();
+			this.activeIndex = forward ? 0 : this.activeField.count();
 
 			return true;
 		}
@@ -922,6 +996,10 @@ class Application
 	{
 		console.log("insert " + t.toString() + " at " + this.activeIndex + (capture ? " with capture" : ""));
 
+		if (!(this.activeField instanceof Formula))
+			return;
+
+		var f = <Formula> this.activeField;
 		var captured = false;
 
 		if (t instanceof Structure)
@@ -930,15 +1008,15 @@ class Application
 			var last: Token;
 
 			if (this.activeIndex > 0 && capture
-				&& capture(last = this.activeFormula.tokens[this.activeIndex - 1]))
+				&& capture(last = f.tokens[this.activeIndex - 1]))
 			{
 				captured = true;
 				struct.elems[0].insert(0, last);
-				this.removeToken(this.activeIndex - 1, 1);
+				this.removeToken(this.activeIndex - 1, this.activeIndex);
 			}
 		}
 
-		this.activeFormula.insert(this.activeIndex, t);
+		f.insert(this.activeIndex, t);
 
 		var rec: RecordCreAnn = {
 			type: RecordType.CreAnn,
@@ -960,9 +1038,29 @@ class Application
 	// "paste" method rewrites token's parent
 	private pasteToken(t: Token[]): void
 	{
-		console.log("paste " + t.toString());
+		if (this.activeField instanceof Matrix
+			&& t.length == 1 && t[0] instanceof Matrix)
+		{
+			var a = <Matrix> this.activeField;
+			var p = a.pos(this.activeIndex);
+			var m = <Matrix> t[0];
+			var mr = Math.min(m.rows, a.rows - p.row);
+			var mc = Math.min(m.cols, a.cols - p.col);
 
-		this.activeFormula.paste(this.activeIndex, t);
+		outerloop:
+			for (var i = 0; i < mr; i++)
+				for (var j = 0; j < mc; j++)
+				{
+					if (a.elems[this.activeIndex + i * a.cols + j].tokens.length > 0)
+					{
+						this.removeToken(this.activeIndex,
+							this.activeIndex + (mr - 1) * a.cols + (mc - 1));
+						break outerloop;
+					}
+				}
+		}
+
+		console.log("paste " + t.toString());
 
 		var rec: RecordCreAnn = {
 			type: RecordType.CreAnn,
@@ -972,23 +1070,24 @@ class Application
 		};
 		this.records.push(rec);
 
-		this.activeIndex += t.length;
+		this.activeIndex = this.activeField.paste(this.activeIndex, t);
 	}
-	private removeToken(i: number, count: number): void
+	private removeToken(from: number, to: number): void
 	{
-		console.log("remove " + count + " at " + i);
+		console.log("remove " + from + " ~ " + to);
 
-		var removed = this.activeFormula.remove(i, count);
+		var removed = this.activeField.remove(from, to);
+		var index = Math.min(from, to);
 
 		var rec: RecordCreAnn = {
 			type: RecordType.CreAnn,
-			index: i,
+			index: index,
 			insert: false,
 			contents: removed
 		};
 		this.records.push(rec);
 
-		this.activeIndex = i;
+		this.activeIndex = index;
 	}
 
 	//////////////////////////////////////
@@ -1107,13 +1206,30 @@ class Application
 			case StructType.Matrix:
 				var m = <Matrix> s;
 				e = $("<div/>").addClass("matrix");
+				if (this.activeField == m && this.markedIndex >= 0)
+				{
+					var mark = true;
+					var ai = Math.floor(this.activeIndex / m.cols);
+					var aj = this.activeIndex % m.cols;
+					var mi = Math.floor(this.markedIndex / m.cols);
+					var mj = this.markedIndex % m.cols;
+					var i1 = Math.min(ai, mi);
+					var j1 = Math.min(aj, mj);
+					var i2 = Math.max(ai, mi);
+					var j2 = Math.max(aj, mj);
+				}
 				for (var i = 0; i < m.rows; i++)
 				{
 					var r = $("<div/>").addClass("row");
 					for (var j = 0; j < m.cols; j++)
 					{
 						var c = $("<div/>").addClass("cell");
-						this.outputToken(c, m.tokenAt(i, j));
+
+						var t = this.outputToken(c, m.tokenAt(i, j));
+						if (m == this.activeField && i * m.cols + j == this.activeIndex)
+							t.addClass("active");
+						if (mark && i >= i1 && i <= i2 && j >= j1 && j <= j2)
+							c.addClass("marked");
 						r.append(c);
 					}
 					e.append(r);
@@ -1215,7 +1331,7 @@ class Application
 	{
 		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
 
-		if (f == this.activeFormula)
+		if (f == this.activeField)
 		{
 			var r: JQuery;
 			var markedFrom = Math.min(this.markedIndex, this.activeIndex);

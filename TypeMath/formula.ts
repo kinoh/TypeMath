@@ -61,12 +61,15 @@ class Num extends Token
 
 interface TokenSeq
 {
-	parent: any;
+	parent: TokenSeq;
 	count(): number;
 	token(i: number): Token;
-	next(t: Token): any;
-	prev(t: Token): any;
+	next(t: Token): Token;
+	prev(t: Token): Token;
 	indexOf(t: Token): number;
+	remove(from: number, to: number): Token[];
+	copy(from: number, to: number): Token[];
+	paste(index: number, tokens: Token[]): number;
 
 	/* Token method */
 	clone(parent: TokenSeq): Token;
@@ -90,34 +93,37 @@ class Structure extends Token /* TokenSeq */
 	type: StructType;
 	elems: Formula[];
 
-	public constructor(parent: TokenSeq, type: StructType)
+	public constructor(parent: TokenSeq, type: StructType, count?: number)
 	{
 		super();
 		this.parent = parent;
 		this.type = type;
 
-		var count: number;
+		var n = 0;
 
-		switch (type)
+		if (count)
+			n = count;
+		else
 		{
-			case StructType.Infer:
-				count = 3;
-				break;
-			case StructType.Frac:
-			case StructType.BigOpr:
-				count = 2;
-				break;
-			case StructType.Power:
-			case StructType.Index:
-			case StructType.Accent:
-				count = 1;
-				break;
-			default:
-				return;
+			switch (type)
+			{
+				case StructType.Infer:
+					n = 3;
+					break;
+				case StructType.Frac:
+				case StructType.BigOpr:
+					n = 2;
+					break;
+				case StructType.Power:
+				case StructType.Index:
+				case StructType.Accent:
+					n = 1;
+					break;
+			}
 		}
 
-		this.elems = new Array(count);
-		for (var i = 0; i < count; i++)
+		this.elems = new Array(n);
+		for (var i = 0; i < n; i++)
 			this.elems[i] = new Formula(<TokenSeq> this);
 	}
 	public count(): number
@@ -151,7 +157,37 @@ class Structure extends Token /* TokenSeq */
 		else
 			return -1;
 	}
+	public remove(from: number, to?: number): Token[]
+	{
+		if (to === undefined)
+			to = from;
+		var i = Math.min(from);
+		var j = Math.max(to);
+		var r = this.elems.slice(i, j + 1);
 
+		for (var k = i; k <= j; k++)
+			this.elems[k] = new Formula(this);
+
+		return r;
+	}
+	public copy(from: number, to: number): Token[]
+	{
+		return this.elems.slice(from, to).map(s => s.clone(null));
+	}
+	public paste(index: number, tokens: Token[]): number
+	{
+		if (tokens.every(t => t instanceof Formula))
+		{
+			for (var i = 0; i < tokens.length; i++)
+				this.elems[index + i] = <Formula> tokens[i].clone(this);
+			return index + tokens.length;
+		}
+		else
+		{
+			this.elems[index].paste(this.elems[index].count(), tokens);
+			return index;
+		}
+	}
 	public clone(parent: TokenSeq): Structure
 	{
 		var s = new Structure(parent, this.type);
@@ -186,23 +222,82 @@ class Matrix extends Structure
 
 	constructor(parent: TokenSeq, rows: number, cols: number)
 	{
-		super(parent, StructType.Matrix);
+		super(parent, StructType.Matrix, rows * cols);
 
 		this.rows = rows;
 		this.cols = cols;
-		this.elems = new Array(rows * cols);
-
-		for (var i = 0; i < this.elems.length; i++)
-			this.elems[i] = new Formula(this);
+	}
+	public pos(index: number)
+	{
+		return { row: Math.floor(index / this.cols), col: index % this.cols };
 	}
 
-	public tokenAt(r: number, c: number): Formula
+	public tokenAt(r: number, c: number, value?: Formula): Formula
 	{
 		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols)
+		{
 			console.error("[Matrix.token] out of range : " + r + "," + c);
-		return this.elems[r * this.cols + c];
+			return null;
+		}
+		else if (value !== undefined)
+			return this.elems[r * this.cols + c] = value;
+		else
+			return this.elems[r * this.cols + c];
 	}
 
+	public remove(from: number, to?: number): Token[]
+	{
+		return [this.cloneArea(from, to, true)];
+	}
+	public copy(from: number, to: number): Token[]
+	{
+		return [this.cloneArea(from, to, false)];
+	}
+	public cloneArea(from: number, to: number, erase: boolean): Matrix
+	{
+		if (to === undefined)
+			to = from;
+
+		var ai = Math.floor(from / this.cols);
+		var aj = from % this.cols;
+		var mi = Math.floor(to / this.cols);
+		var mj = to % this.cols;
+		var i1 = Math.min(ai, mi);
+		var j1 = Math.min(aj, mj);
+		var i2 = Math.max(ai, mi);
+		var j2 = Math.max(aj, mj);
+
+		return this.cloneRect(i1, j1, i2, j2, erase);
+	}
+	public cloneRect(i1: number, j1: number, i2: number, j2: number, erase: boolean): Matrix
+	{
+		var m = new Matrix(null, i2 - i1 + 1, j2 - j1 + 1);
+
+		for (var i = 0; i < m.rows; i++)
+			for (var j = 0; j < m.cols; j++)
+			{
+				m.tokenAt(i, j, this.tokenAt(i + i1, j + j1).clone(m));
+				if (erase)
+					this.tokenAt(i + i1, j + j1, new Formula(this));
+			}
+
+		return m;
+	}
+	public paste(index: number, tokens: Token[]): number
+	{
+		if (tokens.length != 1 || !(tokens[0] instanceof Matrix))
+			super.paste(index, tokens);
+
+		var m = <Matrix> tokens[0];
+		var p = this.pos(index);
+		var r = Math.min(m.rows, this.rows - p.row);
+		var c = Math.min(m.cols, this.cols - p.col);
+		for (var i = 0; i < r; i++)
+			for (var j = 0; j < c; j++)
+				this.tokenAt(p.row + i, p.col + j, m.tokenAt(i, j).clone(this));
+
+		return index + (r - 1) * this.cols + (c - 1);
+	}
 	public clone(parent: TokenSeq): Matrix
 	{
 		var m = new Matrix(parent, this.rows, this.cols);
@@ -387,24 +482,29 @@ class Formula extends Token /* TokenSeq */
 		this.tokens.splice(i, 0, t);
 	}
 
-	public remove(i: number, count?: number): Token[]
+	public remove(from: number, to?: number): Token[]
 	{
-		return this.tokens.splice(i, count != undefined ? count : 1);
+		var i, c: number;
+		if (to === undefined)
+			i = from, c = 1;
+		else
+		{
+			i = Math.min(from, to);
+			c = Math.abs(to - from);
+		}
+		return this.tokens.splice(i, c);
 	}
-
-	public copy(a: number, b: number): Token[]
+	public copy(from: number, to: number): Token[]
 	{
-		var from = Math.min(a, b);
-		var to = Math.max(a, b);
-
-		return this.tokens.slice(from, to).map(s => s.clone(null));
+		return this.tokens.slice(Math.min(from, to), Math.max(from, to)).map(s => s.clone(null));
 	}
-
-	public paste(i: number, t: Token[]): void
+	public paste(index: number, tokens: Token[]): number
 	{
-		this.tokens = this.tokens.slice(0, i).concat(
-			t.map(s => s.clone(this)).concat(
-				this.tokens.slice(i)));
+		this.tokens = this.tokens.slice(0, index).concat(
+			tokens.map(s => s.clone(this)).concat(
+				this.tokens.slice(index)));
+
+		return index + tokens.length;
 	}
 	public clone(parent: TokenSeq): Formula
 	{
