@@ -83,6 +83,7 @@ enum StructType
 	Power,
 	Index,
 	Matrix,
+	Diagram,
 	BigOpr,
 	Accent
 }

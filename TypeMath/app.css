@@ -55,19 +55,33 @@
 	background: -webkit-gradient(linear, center top, center bottom, from(#fff), color-stop(0.50, #fff), color-stop(0.75, #eee), color-stop(0.85, #ccc), to(#777));
 }
 
+#ghost
+{
+	position: absolute;
+	left: 0px;
+	top: 0px;
+}
+
 .active
 {
 	border: solid 1px #fcc;
 	margin: 0.05em;
 }
 
-.curret
+.blank
 {
+	border: dotted 1px #666;
+	min-width: 0.4em;
 }
 
 .marked
 {
 	background-color: #ecf;
+}
+
+.arrowStart
+{
+	border: solid 1px #9f9;
 }
 
 .hiddenWorks

@@ -1,6 +1,7 @@
 ﻿/// <reference path="jquery.d.ts" />
 /// <reference path="keyboard.ts" />
 /// <reference path="formula.ts" />
+/// <reference path="diagram.ts" />
 /// <reference path="latex.ts" />
 /// <reference path="unicode.ts" />
 /// <reference path="glyph.ts" />
@@ -31,7 +32,8 @@ class Application
 	private active: JQuery;
 	private latex: JQuery;
 	private candy: JQuery;
-	private glyph;
+	private ghost: JQuery;
+	private glyph: GlyphFactory;
 	private _log: JQuery;
 	private _status: JQuery;
 	private _logText = "";
@@ -48,9 +50,16 @@ class Application
 	private currentInput = "";
 	private postInput = "";
 	private inputType = InputType.Empty;
+	private diagramOption = {
+		from: -1,
+		style: ArrowStyle.Plain,
+		head: ">",
+		num: 1
+	};
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
+	private renderAfterLayout: Token[];
 	private records: Record[] = [];
 
 	public candMax = 16;
@@ -85,18 +94,20 @@ class Application
 		"floor": "⌊",
 		"ceil": "⌈",
 		"angle": "〈",
-		"sqrt": "√"
+		"sqrt": "√",
+		"xymatrix": "",
 	};
 
 	private bracketCor = {
 		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
 	};
 
-	constructor(field: JQuery, latex: JQuery, candy: JQuery, proof: JQuery)
+	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.latex = latex;
 		this.candy = candy;
+		this.ghost = ghost;
 
 		this.enrichKeywords();
 
@@ -135,11 +146,16 @@ class Application
 	}
 	private render(): void
 	{
+		this.renderAfterLayout = [];
+
 		this.field.empty();
 		this.outputCurrentStyle = [FontStyle.Normal];
 		this.outputToken(this.field, this.formula);
 
 		this.active.text((this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput);
+
+		this.renderSub();
+
 		this.showCandidate();
 
 		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
@@ -160,6 +176,38 @@ class Application
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
+	}
+	private renderSub(): void
+	{
+		var activeArrowColor = "#f39";
+		var intendedArrowColor = "#999";
+
+		this.ghost.prop({
+			"width": document.body.clientWidth,
+			"height": document.body.clientHeight
+		});
+		var ctx = (<HTMLCanvasElement> this.ghost[0]).getContext("2d");
+
+		for (var i = 0; i < this.renderAfterLayout.length; i++)
+		{
+			var m = <Diagram> this.renderAfterLayout[i];
+			var chosen = false;
+			m.arrows.forEach(a =>
+			{
+				if (a.from == this.diagramOption.from && a.to == this.activeIndex)
+				{
+					m.drawArrow(ctx, a, activeArrowColor);
+					chosen = true;
+				}
+				else
+					m.drawArrow(ctx, a);
+			});
+			if (m == this.activeField && this.diagramOption.from >= 0 && !chosen)
+			{
+				var a = <Arrow> $.extend({ to: this.activeIndex }, this.diagramOption);
+				m.drawArrow(ctx, a, intendedArrowColor);
+			}
+		}
 	}
 	private writeRecord(r: Record)
 	{
@@ -186,6 +234,12 @@ class Application
 
 		this.markedIndex = -1;
 
+		if (this.processInputDiagram(key))
+		{
+			this.render();
+			e.preventDefault();
+			return;
+		}
 		if (!(this.activeField instanceof Formula))
 			this.enterFormula(true);
 
@@ -221,6 +275,55 @@ class Application
 		else
 			return InputType.String;
 	}
+	private processInputDiagram(key: string): boolean
+	{
+		var processed = false;
+
+		if (this.activeField instanceof Diagram)
+		{
+			processed = true;
+
+			switch (key)
+			{
+				case "=":
+					this.diagramOption.num = 2;
+				case "-":
+					this.diagramOption.style =
+					(this.diagramOption.style == ArrowStyle.Plain
+					? ArrowStyle.Dashed : ArrowStyle.Plain);
+					break;
+				case ":":
+					this.diagramOption.num = 2;
+				case ".":
+					this.diagramOption.style = ArrowStyle.Dotted;
+					break;
+				case ":":
+					this.diagramOption.num = 2;
+				case ".":
+					this.diagramOption.style = ArrowStyle.Dotted;
+					break;
+				case "~":
+					this.diagramOption.style = ArrowStyle.Wavy;
+					break;
+				case "1":
+					this.diagramOption.num = 1;
+					break;
+				case "2":
+					this.diagramOption.num = 2;
+					break;
+				case "3":
+					this.diagramOption.num = 3;
+					break;
+				case "4":
+					this.diagramOption.num = 4;
+					break;
+				default:
+					processed = false;
+			}
+		}
+
+		return processed;
+	}
 	private processControlInput(e: KeyboardEvent): void
 	{
 		var suppress = true;
@@ -234,8 +337,11 @@ class Application
 				break;
 			case ControlKey.Enter:
 				if (this.candIndex >= 0)
+				{
 					this.decideCandidate();
-				else if (this.activeField instanceof Formula)
+					break;
+				}
+				if (this.activeField instanceof Formula)
 				{
 					var f = <Formula> this.activeField;
 
@@ -245,7 +351,21 @@ class Application
 					{
 						var res = Calc.eval(f.tokens.slice(0, this.activeIndex - 1));
 						this.pasteToken([res !== null ? res : new Symbol("?", false)]);
+						break;
 					}
+				}
+				if (this.activeField.parent instanceof Diagram)
+					this.leaveFormula(true);
+				else if (this.activeField instanceof Diagram)
+				{
+					if (this.diagramOption.from >= 0)
+					{
+						var a = <Arrow> $.extend({ to: this.activeIndex }, this.diagramOption);
+						(<Diagram> this.activeField).addArrow(a);
+						this.diagramOption.from = -1;
+					}
+					else
+						this.enterFormula(true);
 				}
 				break;
 			case ControlKey.Space:
@@ -269,6 +389,11 @@ class Application
 								this.interpretInput();
 								break;
 							}
+						}
+						else if (this.activeField instanceof Diagram)
+						{
+							this.diagramOption.from = (this.diagramOption.from < 0 ? this.activeIndex : -1);
+							break;
 						}
 						this.moveNext();
 					}
@@ -510,7 +635,7 @@ class Application
 				var neig: Formula;
 				if (s.type == StructType.Infer)
 					neig = (upward ? s.next : s.prev)(<Formula> ac);
-				else if (s.type == StructType.Matrix)
+				else if (s instanceof Matrix)
 					neig = (<Matrix> s).around(<Formula> ac, false, !upward);
 				else
 					neig = (upward ? s.prev : s.next)(<Formula> ac);
@@ -818,6 +943,9 @@ class Application
 			case "underbrace":
 				this.insertToken(new Accent(this.activeField, this.keywords[input], input != "underline" && input != "underbrace"));
 				break;
+			case "xymatrix":
+				this.insertToken(new Diagram(this.activeField, 1, 1));
+				break;
 			default:
 				if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
@@ -912,7 +1040,9 @@ class Application
 	{
 		var t: TokenSeq = this.activeField;
 
-		if (t.parent instanceof Structure && !(this.markedIndex >= 0 && t.parent instanceof Matrix))
+		if (t.parent instanceof Structure
+			&& !(this.markedIndex >= 0 && t.parent instanceof Matrix
+				|| t.parent instanceof Diagram))
 		{
 			var rec0: RecordTransfer = {
 				type: RecordType.Transfer,
@@ -946,6 +1076,9 @@ class Application
 		}
 		this.activeField = f;
 
+		if (f instanceof Diagram)
+			this.diagramOption.from = -1;
+
 		return true;
 	}
 	private enterFormula(forward: boolean): boolean
@@ -977,6 +1110,9 @@ class Application
 					deeper: true
 				};
 				this.records.push(rec2);
+
+				if (dest instanceof Diagram)
+					this.diagramOption.from = -1;
 			}
 			else
 				this.activeField = <Formula> dest;
@@ -1203,6 +1339,8 @@ class Application
 				this.outputToken(e, s.token(0));
 				break;
 
+			case StructType.Diagram:
+				this.renderAfterLayout.push(s);
 			case StructType.Matrix:
 				var m = <Matrix> s;
 				e = $("<div/>").addClass("matrix");
@@ -1223,11 +1361,17 @@ class Application
 					var r = $("<div/>").addClass("row");
 					for (var j = 0; j < m.cols; j++)
 					{
-						var c = $("<div/>").addClass("cell");
+						var c = $("<div/>").addClass(m.type == StructType.Diagram ? "xycell" : "cell");
 
 						var t = this.outputToken(c, m.tokenAt(i, j));
-						if (m == this.activeField && i * m.cols + j == this.activeIndex)
-							t.addClass("active");
+						if (m == this.activeField)
+						{
+							var k = i * m.cols + j;
+							if (k == this.diagramOption.from)
+								t.addClass("arrowStart");
+							if (k == this.activeIndex)
+								t.addClass("active");
+						}
 						if (mark && i >= i1 && i <= i2 && j >= j1 && j <= j2)
 							c.addClass("marked");
 						r.append(c);
@@ -1377,5 +1521,5 @@ var app;
 
 window.onload = () =>
 {
-	app = new Application($("#field"), $("#latex"), $("#candy"), $("#proofMode"));
+	app = new Application($("#field"), $("#latex"), $("#candy"), $("#ghost"), $("#proofMode"));
 };
