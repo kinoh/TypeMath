@@ -19,12 +19,22 @@ enum RecordType
 {
 	Transfer,
 	CreAnn,
+	CreAnnArrow,
 	EditMatrix
 }
 interface Record { type: RecordType; index: number; }
 interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
 interface RecordCreAnn { type: RecordType; index: number; insert: boolean; contents: Token[]; }
+interface RecordCreAnnArrow { type: RecordType; index: number; insert: boolean; option: DiagramOption; }
 interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
+
+interface DiagramOption
+{
+	from: number;
+	num: number;
+	style: ArrowStyle;
+	head: string;
+}
 
 class Application
 {
@@ -50,13 +60,13 @@ class Application
 	private currentInput = "";
 	private postInput = "";
 	private inputType = InputType.Empty;
-	private diagramOption = {
+	private diagramOption: DiagramOption = {
 		from: -1,
-		style: ArrowStyle.Plain,
-		head: ">",
 		num: 1,
-		arrowIndex: -1
+		style: ArrowStyle.Plain,
+		head: ">"
 	};
+	private subIndex = -1;
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
@@ -178,7 +188,7 @@ class Application
 				"diag.num      = " + this.diagramOption.num,
 				"diag.style    = " + this.diagramOption.style,
 				"diag.head     = " + this.diagramOption.head,
-				"diag.arrowInd = " + this.diagramOption.arrowIndex,
+				"diag.subIndex = " + this.subIndex,
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
@@ -207,8 +217,8 @@ class Application
 				{
 					m.drawArrow(ctx, a, activeArrowColor);
 					selected = true;
-					if (this.diagramOption.arrowIndex < 0)
-						this.diagramOption.arrowIndex = j;
+					if (this.subIndex < 0)
+						this.subIndex = j;
 				}
 				else
 					m.drawArrow(ctx, a);
@@ -225,7 +235,7 @@ class Application
 				m.drawArrow(ctx, a, intendedArrowColor);
 			}
 			if (!selected)
-				this.diagramOption.arrowIndex = -1;
+				this.subIndex = -1;
 		}
 	}
 	private writeRecord(r: Record)
@@ -374,12 +384,7 @@ class Application
 				else if (this.activeField instanceof Diagram)
 				{
 					if (this.diagramOption.from >= 0)
-					{
-						var d = <Diagram> this.activeField;
-						d.addArrow(this.diagramOption.from, this.activeIndex,
-							this.diagramOption.num, this.diagramOption.style, this.diagramOption.head);
-						this.diagramOption.from = -1;
-					}
+						this.addArrow();
 					else
 						this.enterFormula(true);
 				}
@@ -482,10 +487,8 @@ class Application
 					this.markedIndex = -1;
 				}
 				else if (this.activeField instanceof Diagram
-					&& this.diagramOption.arrowIndex >= 0)
-				{
-					(<Diagram> this.activeField).removeArrow(this.diagramOption.from, this.activeIndex);
-				}
+					&& this.subIndex >= 0)
+					this.removeArrow();
 				else if (this.activeIndex > 0)
 				{
 					this.removeToken(this.activeIndex - 1, this.activeIndex);
@@ -827,6 +830,21 @@ class Application
 				this.activeIndex = dest.paste(ca.index, ca.contents);
 			}
 		}
+		else if (this.records[i].type == RecordType.CreAnnArrow)
+		{
+			var caa = <RecordCreAnnArrow> this.records[i];
+			var d: Diagram;
+
+			if (dest instanceof Diagram)
+				d = <Diagram> dest;
+			else
+				console.error("[Application.undo] incosistent record");
+
+			if (caa.insert)
+				d.removeArrow(caa.option.from, caa.index);
+			else
+				d.addArrow(caa.option.from, caa.index, caa.option.num, caa.option.style, caa.option.head);
+		}
 		else if (this.records[i].type == RecordType.EditMatrix)
 		{
 			var em = <RecordEditMatrix> this.records[i];
@@ -1014,6 +1032,48 @@ class Application
 		}
 
 		this.postInput = "";
+	}
+
+	//////////////////////////////////////
+	/*  diagram editing					*/
+	//////////////////////////////////////
+	private addArrow(): void
+	{
+		if (!(this.activeField instanceof Diagram))
+			return;
+
+		var d = <Diagram> this.activeField;
+
+		d.addArrow(this.diagramOption.from, this.activeIndex,
+			this.diagramOption.num, this.diagramOption.style, this.diagramOption.head);
+
+		var rec: RecordCreAnnArrow = {
+			type: RecordType.CreAnnArrow,
+			index: this.activeIndex,
+			insert: true,
+			option: <DiagramOption> $.extend({}, this.diagramOption)
+		};
+		this.records.push(rec);
+
+		this.diagramOption.from = -1;
+	}
+	private removeArrow(): void
+	{
+		if (!(this.activeField instanceof Diagram))
+			return;
+
+		var d = <Diagram> this.activeField;
+
+		var removed = d.removeArrow(this.diagramOption.from, this.activeIndex);
+
+		var i = removed.from.row * d.cols + removed.from.col;
+		var rec: RecordCreAnnArrow = {
+			type: RecordType.CreAnnArrow,
+			index: this.activeIndex,
+			insert: false,
+			option: <DiagramOption> $.extend(removed, { from: i })
+		};
+		this.records.push(rec);
 	}
 
 	//////////////////////////////////////

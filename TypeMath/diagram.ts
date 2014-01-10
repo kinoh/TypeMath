@@ -43,7 +43,7 @@ class Diagram extends Matrix
 		};
 		this.arrows.push(a);
 	}
-	public removeArrow(from: number, to: number): void
+	public removeArrow(from: number, to: number): Arrow
 	{
 		for (var i = 0; i < this.arrows.length; i++)
 		{
@@ -52,9 +52,11 @@ class Diagram extends Matrix
 				&& a.to.row * this.cols + a.to.col == to)
 			{
 				this.arrows.splice(i, 1);
-				break;
+				return a;
 			}
 		}
+
+		return null;
 	}
 	public drawArrow(ctx: CanvasRenderingContext2D, arrow: Arrow, color?: string): void
 	{
