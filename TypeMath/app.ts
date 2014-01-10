@@ -54,7 +54,8 @@ class Application
 		from: -1,
 		style: ArrowStyle.Plain,
 		head: ">",
-		num: 1
+		num: 1,
+		arrowIndex: -1
 	};
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
@@ -173,6 +174,11 @@ class Application
 				"inputType     = " + (this.inputType == InputType.Empty ? "Empty" :
 				this.inputType == InputType.Number ? "Number" :
 				this.inputType == InputType.String ? "String" : "Symbol"),
+				"diag.from     = " + this.diagramOption.from,
+				"diag.num      = " + this.diagramOption.num,
+				"diag.style    = " + this.diagramOption.style,
+				"diag.head     = " + this.diagramOption.head,
+				"diag.arrowInd = " + this.diagramOption.arrowIndex,
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
@@ -191,22 +197,35 @@ class Application
 		for (var i = 0; i < this.renderAfterLayout.length; i++)
 		{
 			var m = <Diagram> this.renderAfterLayout[i];
-			var chosen = false;
-			m.arrows.forEach(a =>
+			var selected = false;
+			var from = m.pos(this.diagramOption.from);
+			var to = m.pos(this.activeIndex);
+			m.arrows.forEach((a, j) =>
 			{
-				if (a.from == this.diagramOption.from && a.to == this.activeIndex)
+				if (a.from.row == from.row && a.from.col == from.col
+					&& a.to.row == to.row && a.to.col == to.col)
 				{
 					m.drawArrow(ctx, a, activeArrowColor);
-					chosen = true;
+					selected = true;
+					if (this.diagramOption.arrowIndex < 0)
+						this.diagramOption.arrowIndex = j;
 				}
 				else
 					m.drawArrow(ctx, a);
 			});
-			if (m == this.activeField && this.diagramOption.from >= 0 && !chosen)
+			if (m == this.activeField && this.diagramOption.from >= 0 && !selected)
 			{
-				var a = <Arrow> $.extend({ to: this.activeIndex }, this.diagramOption);
+				var a: Arrow = {
+					from:	m.pos(this.diagramOption.from),
+					to:		m.pos(this.activeIndex),
+					style:	this.diagramOption.style,
+					head:	this.diagramOption.head,
+					num:	this.diagramOption.num
+				};
 				m.drawArrow(ctx, a, intendedArrowColor);
 			}
+			if (!selected)
+				this.diagramOption.arrowIndex = -1;
 		}
 	}
 	private writeRecord(r: Record)
@@ -234,7 +253,8 @@ class Application
 
 		this.markedIndex = -1;
 
-		if (this.processInputDiagram(key))
+		if (this.activeField instanceof Diagram
+			&& this.processInputDiagram(key))
 		{
 			this.render();
 			e.preventDefault();
@@ -277,49 +297,44 @@ class Application
 	}
 	private processInputDiagram(key: string): boolean
 	{
-		var processed = false;
+		var processed = true;
 
-		if (this.activeField instanceof Diagram)
+		switch (key)
 		{
-			processed = true;
-
-			switch (key)
-			{
-				case "=":
-					this.diagramOption.num = 2;
-				case "-":
-					this.diagramOption.style =
-					(this.diagramOption.style == ArrowStyle.Plain
-					? ArrowStyle.Dashed : ArrowStyle.Plain);
-					break;
-				case ":":
-					this.diagramOption.num = 2;
-				case ".":
-					this.diagramOption.style = ArrowStyle.Dotted;
-					break;
-				case ":":
-					this.diagramOption.num = 2;
-				case ".":
-					this.diagramOption.style = ArrowStyle.Dotted;
-					break;
-				case "~":
-					this.diagramOption.style = ArrowStyle.Wavy;
-					break;
-				case "1":
-					this.diagramOption.num = 1;
-					break;
-				case "2":
-					this.diagramOption.num = 2;
-					break;
-				case "3":
-					this.diagramOption.num = 3;
-					break;
-				case "4":
-					this.diagramOption.num = 4;
-					break;
-				default:
-					processed = false;
-			}
+			case "=":
+				this.diagramOption.num = 2;
+			case "-":
+				this.diagramOption.style =
+				(this.diagramOption.style == ArrowStyle.Plain
+				? ArrowStyle.Dashed : ArrowStyle.Plain);
+				break;
+			case ":":
+				this.diagramOption.num = 2;
+			case ".":
+				this.diagramOption.style = ArrowStyle.Dotted;
+				break;
+			case ":":
+				this.diagramOption.num = 2;
+			case ".":
+				this.diagramOption.style = ArrowStyle.Dotted;
+				break;
+			case "~":
+				this.diagramOption.style = ArrowStyle.Wavy;
+				break;
+			case "1":
+				this.diagramOption.num = 1;
+				break;
+			case "2":
+				this.diagramOption.num = 2;
+				break;
+			case "3":
+				this.diagramOption.num = 3;
+				break;
+			case "4":
+				this.diagramOption.num = 4;
+				break;
+			default:
+				processed = false;
 		}
 
 		return processed;
@@ -360,8 +375,9 @@ class Application
 				{
 					if (this.diagramOption.from >= 0)
 					{
-						var a = <Arrow> $.extend({ to: this.activeIndex }, this.diagramOption);
-						(<Diagram> this.activeField).addArrow(a);
+						var d = <Diagram> this.activeField;
+						d.addArrow(this.diagramOption.from, this.activeIndex,
+							this.diagramOption.num, this.diagramOption.style, this.diagramOption.head);
 						this.diagramOption.from = -1;
 					}
 					else
@@ -464,6 +480,11 @@ class Application
 				{
 					this.removeToken(this.markedIndex, this.activeIndex);
 					this.markedIndex = -1;
+				}
+				else if (this.activeField instanceof Diagram
+					&& this.diagramOption.arrowIndex >= 0)
+				{
+					(<Diagram> this.activeField).removeArrow(this.diagramOption.from, this.activeIndex);
 				}
 				else if (this.activeIndex > 0)
 				{
