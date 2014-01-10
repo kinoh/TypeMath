@@ -64,6 +64,8 @@ class Diagram extends Matrix
 		var b = this.tokenAt(arrow.to.row, arrow.to.col).renderedElem[0];
 		var rec1 = a.getBoundingClientRect();
 		var rec2 = b.getBoundingClientRect();
+		var scrollx = document.documentElement.scrollLeft || document.body.scrollLeft;
+		var scrolly = document.documentElement.scrollTop || document.body.scrollTop;
 		var ax = (rec1.left + rec1.right) / 2;
 		var ay = (rec1.top + rec1.bottom) / 2;
 		var bx = (rec2.left + rec2.right) / 2;
@@ -74,7 +76,7 @@ class Diagram extends Matrix
 		if (color)
 			ctx.strokeStyle = color;
 
-		ctx.translate(ax, ay);
+		ctx.translate(ax + scrollx, ay + scrolly);
 		var dx = bx - ax;
 		var dy = by - ay;
 		var r = Math.sqrt(dx * dx + dy * dy);
