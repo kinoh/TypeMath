@@ -18,21 +18,23 @@ enum InputType
 enum RecordType
 {
 	Transfer,
-	CreAnn,
-	CreAnnArrow,
-	EditMatrix
+	Edit,
+	EditMatrix,
+	DiagramEdit,
+	DiagramDeco,
 }
 interface Record { type: RecordType; index: number; }
 interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
-interface RecordCreAnn { type: RecordType; index: number; insert: boolean; contents: Token[]; }
-interface RecordCreAnnArrow { type: RecordType; index: number; insert: boolean; option: DiagramOption; }
+interface RecordEdit { type: RecordType; index: number; insert: boolean; contents: Token[]; }
 interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
+interface RecordDiagramEdit { type: RecordType; index: number; insert: boolean; option: DiagramOption; }
+interface RecordDiagramDeco { type: RecordType; index: number; command: string; prev: StrokeStyle; }
 
 interface DiagramOption
 {
 	from: number;
 	num: number;
-	style: ArrowStyle;
+	style: StrokeStyle;
 	head: string;
 }
 
@@ -63,17 +65,19 @@ class Application
 	private diagramOption: DiagramOption = {
 		from: -1,
 		num: 1,
-		style: ArrowStyle.Plain,
+		style: StrokeStyle.Plain,
 		head: ">"
 	};
 	private subIndex = -1;
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
-	private renderAfterLayout: Token[];
+	private afterLayout: Token[];
 	private records: Record[] = [];
 
 	public candMax = 16;
+	public activeArrowColor = "#f39";
+	public intendedArrowColor = "#999";
 
 	private digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	private symbols: string[] = [
@@ -157,7 +161,7 @@ class Application
 	}
 	private render(): void
 	{
-		this.renderAfterLayout = [];
+		this.afterLayout = [];
 
 		this.field.empty();
 		this.outputCurrentStyle = [FontStyle.Normal];
@@ -165,7 +169,7 @@ class Application
 
 		this.active.text((this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput);
 
-		this.renderSub();
+		this.drawAfterLayout();
 
 		this.showCandidate();
 
@@ -192,51 +196,6 @@ class Application
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
-	}
-	private renderSub(): void
-	{
-		var activeArrowColor = "#f39";
-		var intendedArrowColor = "#999";
-
-		this.ghost.prop({
-			"width": document.body.clientWidth,
-			"height": document.body.clientHeight
-		});
-		var ctx = (<HTMLCanvasElement> this.ghost[0]).getContext("2d");
-
-		for (var i = 0; i < this.renderAfterLayout.length; i++)
-		{
-			var m = <Diagram> this.renderAfterLayout[i];
-			var selected = false;
-			var from = m.pos(this.diagramOption.from);
-			var to = m.pos(this.activeIndex);
-			m.arrows.forEach((a, j) =>
-			{
-				if (a.from.row == from.row && a.from.col == from.col
-					&& a.to.row == to.row && a.to.col == to.col)
-				{
-					m.drawArrow(ctx, a, activeArrowColor);
-					selected = true;
-					if (this.subIndex < 0)
-						this.subIndex = j;
-				}
-				else
-					m.drawArrow(ctx, a);
-			});
-			if (m == this.activeField && this.diagramOption.from >= 0 && !selected)
-			{
-				var a: Arrow = {
-					from:	m.pos(this.diagramOption.from),
-					to:		m.pos(this.activeIndex),
-					style:	this.diagramOption.style,
-					head:	this.diagramOption.head,
-					num:	this.diagramOption.num
-				};
-				m.drawArrow(ctx, a, intendedArrowColor);
-			}
-			if (!selected)
-				this.subIndex = -1;
-		}
 	}
 	private writeRecord(r: Record)
 	{
@@ -309,42 +268,50 @@ class Application
 	{
 		var processed = true;
 
-		switch (key)
+		if (this.diagramOption.from < 0)
+		{	
+			this.decorateObject(key);
+		}
+		else
 		{
-			case "=":
-				this.diagramOption.num = 2;
-			case "-":
-				this.diagramOption.style =
-				(this.diagramOption.style == ArrowStyle.Plain
-				? ArrowStyle.Dashed : ArrowStyle.Plain);
-				break;
-			case ":":
-				this.diagramOption.num = 2;
-			case ".":
-				this.diagramOption.style = ArrowStyle.Dotted;
-				break;
-			case ":":
-				this.diagramOption.num = 2;
-			case ".":
-				this.diagramOption.style = ArrowStyle.Dotted;
-				break;
-			case "~":
-				this.diagramOption.style = ArrowStyle.Wavy;
-				break;
-			case "1":
-				this.diagramOption.num = 1;
-				break;
-			case "2":
-				this.diagramOption.num = 2;
-				break;
-			case "3":
-				this.diagramOption.num = 3;
-				break;
-			case "4":
-				this.diagramOption.num = 4;
-				break;
-			default:
-				processed = false;
+			switch (key)
+			{
+				case "=":
+					this.diagramOption.num = 2;
+				case "-":
+				case "d":
+					this.diagramOption.style =
+					(this.diagramOption.style == StrokeStyle.Plain
+					? StrokeStyle.Dashed : StrokeStyle.Plain);
+					break;
+				case ":":
+					this.diagramOption.num = 2;
+				case ".":
+					this.diagramOption.style = StrokeStyle.Dotted;
+					break;
+				case ":":
+					this.diagramOption.num = 2;
+				case ".":
+					this.diagramOption.style = StrokeStyle.Dotted;
+					break;
+				case "~":
+					this.diagramOption.style = StrokeStyle.Wavy;
+					break;
+				case "1":
+					this.diagramOption.num = 1;
+					break;
+				case "2":
+					this.diagramOption.num = 2;
+					break;
+				case "3":
+					this.diagramOption.num = 3;
+					break;
+				case "4":
+					this.diagramOption.num = 4;
+					break;
+				default:
+					processed = false;
+			}
 		}
 
 		return processed;
@@ -425,50 +392,14 @@ class Application
 			case ControlKey.Left:
 			case ControlKey.Right:
 				if (e.ctrlKey)
-				{
-					var m: Matrix;
-					if (this.activeField instanceof Matrix)
-						m = <Matrix> this.activeField;
-					else if (this.activeField.parent instanceof Matrix)
-						m = <Matrix> this.activeField.parent;
-					else
-						break;
-
-					(key == ControlKey.Right ? m.extend : m.shrink)(true);
-
-					var rec: RecordEditMatrix = {
-						type: RecordType.EditMatrix,
-						index: this.activeIndex,
-						extend: key == ControlKey.Right,
-						horizontal: true
-					};
-					this.records.push(rec);
-				}
+					this.modifyMatrix(true, key == ControlKey.Right);
 				else
 					this.moveHorizontal(key == ControlKey.Right);
 				break;
 			case ControlKey.Up:
 			case ControlKey.Down:
 				if (e.ctrlKey)
-				{
-					var m: Matrix;
-					if (this.activeField instanceof Matrix)
-						m = <Matrix> this.activeField;
-					else if (this.activeField.parent instanceof Matrix)
-						m = <Matrix> this.activeField.parent;
-					else
-						break;
-
-					(key == ControlKey.Down ? m.extend : m.shrink)(false);
-
-					var rec: RecordEditMatrix = {
-						type: RecordType.EditMatrix,
-						index: this.activeIndex,
-						extend: key == ControlKey.Down,
-						horizontal: false
-					};
-					this.records.push(rec);
-				}
+					this.modifyMatrix(false, key == ControlKey.Down);
 				else if (this.currentInput != "")
 					this.changeCandidate(key == ControlKey.Down);
 				else
@@ -598,7 +529,7 @@ class Application
 		else if (p instanceof Matrix)
 		{
 			var m = <Matrix> p;
-			var a = m.around(<Formula> this.activeField, true, forward);
+			var a = m.around.bind(m)(<Formula> this.activeField, true, forward);
 
 			if (a != null)
 			{
@@ -660,7 +591,7 @@ class Application
 				if (s.type == StructType.Infer)
 					neig = (upward ? s.next : s.prev)(<Formula> ac);
 				else if (s instanceof Matrix)
-					neig = (<Matrix> s).around(<Formula> ac, false, !upward);
+					neig = (<Matrix> s).around.bind(s)(<Formula> ac, false, !upward);
 				else
 					neig = (upward ? s.prev : s.next)(<Formula> ac);
 
@@ -802,37 +733,37 @@ class Application
 
 		this.activeField = dest;
 
-		if (this.records[i].type == RecordType.CreAnn)
+		if (this.records[i].type == RecordType.Edit)
 		{
-			var ca = <RecordCreAnn> this.records[i];
+			var re = <RecordEdit> this.records[i];
 
-			if (ca.insert)
+			if (re.insert)
 			{
 				var to: number;
-				if (ca.contents.length == 1 && ca.contents[0] instanceof Matrix
+				if (re.contents.length == 1 && re.contents[0] instanceof Matrix
 					&& this.activeField instanceof Matrix)
 				{
 					var a = (<Matrix> this.activeField);
-					var p = a.pos(ca.index);
-					var m = (<Matrix> ca.contents[0]);
-					to = ca.index
+					var p = a.pos(re.index);
+					var m = (<Matrix> re.contents[0]);
+					to = re.index
 						+ (Math.min(m.rows, a.rows - p.row) - 1) * a.cols
 						+ (Math.min(m.cols, a.cols - p.col) - 1);
 				}
 				else
-					to = ca.index + ca.contents.length;
+					to = re.index + re.contents.length;
 
-				dest.remove(ca.index, to);
-				this.activeIndex = Math.min(ca.index, to);
+				dest.remove(re.index, to);
+				this.activeIndex = Math.min(re.index, to);
 			}
 			else
 			{
-				this.activeIndex = dest.paste(ca.index, ca.contents);
+				this.activeIndex = dest.paste(re.index, re.contents);
 			}
 		}
-		else if (this.records[i].type == RecordType.CreAnnArrow)
+		else if (this.records[i].type == RecordType.DiagramEdit)
 		{
-			var caa = <RecordCreAnnArrow> this.records[i];
+			var rea = <RecordDiagramEdit> this.records[i];
 			var d: Diagram;
 
 			if (dest instanceof Diagram)
@@ -840,14 +771,49 @@ class Application
 			else
 				console.error("[Application.undo] incosistent record");
 
-			if (caa.insert)
-				d.removeArrow(caa.option.from, caa.index);
+			if (rea.insert)
+				d.removeArrow(rea.option.from, rea.index);
 			else
-				d.addArrow(caa.option.from, caa.index, caa.option.num, caa.option.style, caa.option.head);
+				d.addArrow(rea.option.from, rea.index, rea.option.num, rea.option.style, rea.option.head);
+		}
+		else if (this.records[i].type == RecordType.DiagramDeco)
+		{
+			var rdd = <RecordDiagramDeco> this.records[i];
+			var d: Diagram;
+
+			if (dest instanceof Diagram)
+				d = <Diagram> dest;
+			else
+				console.error("[Application.undo] incosistent record");
+
+			switch (rdd.command)
+			{
+				case "f":
+					d.toggleFrame(rdd.index);
+					break;
+				case "o":
+				case "=":
+					d.alterFrameStyle(rdd.index, rdd.command == "o", rdd.command == "=");
+					if (rdd.prev === null)
+						d.toggleFrame(rdd.index);
+					break;
+				case ".":
+				case "d":
+					d.alterFrameStyle(rdd.index, false, false, rdd.prev);
+					if (rdd.prev === null)
+						d.toggleFrame(rdd.index);
+					break;
+				case "+":
+				case "-":
+					d.changeFrameSize(rdd.index, rdd.command == "-");
+					break;
+			}
+
+			this.activeIndex = rdd.index;
 		}
 		else if (this.records[i].type == RecordType.EditMatrix)
 		{
-			var em = <RecordEditMatrix> this.records[i];
+			var rem = <RecordEditMatrix> this.records[i];
 			var m: Matrix;
 
 			if (dest instanceof Matrix)
@@ -857,7 +823,7 @@ class Application
 			else
 				console.error("[Application.undo] incosistent record");
 
-			(em.extend ? m.shrink : m.extend)(em.horizontal);
+			(rem.extend ? m.shrink : m.extend).bind(m)(rem.horizontal);
 		}
 
 		this.records.splice(i, this.records.length - i + 1);
@@ -1037,8 +1003,60 @@ class Application
 	//////////////////////////////////////
 	/*  diagram editing					*/
 	//////////////////////////////////////
+	private decorateObject(command: string): boolean
+	{
+		console.log("decorate " + this.activeIndex + " " + command);
+
+		if (!(this.activeField instanceof Diagram))
+			return false;
+
+		var d = <Diagram> this.activeField;
+		var prev: StrokeStyle = null;
+		if (this.activeIndex in d.decolations)
+			prev = d.decolations[this.activeIndex].style;
+
+		switch (command)
+		{
+			case "f":
+				d.toggleFrame(this.activeIndex);
+				break;
+			case "o":
+				d.alterFrameStyle(this.activeIndex, true);
+				break;
+			case "=":
+				d.alterFrameStyle(this.activeIndex, false, true);
+				break;
+			case "-":
+				d.changeFrameSize(this.activeIndex, false);
+				break;
+			case "d":
+				d.alterFrameStyle(this.activeIndex, false, false,
+					(prev == StrokeStyle.Dashed ? StrokeStyle.Plain : StrokeStyle.Dashed));
+				break;
+			case ".":
+				d.alterFrameStyle(this.activeIndex, false, false, StrokeStyle.Dotted);
+				break;
+			case "+":
+				d.changeFrameSize(this.activeIndex, true);
+				break;
+			default:
+				return false;
+		}
+
+		var rec: RecordDiagramDeco = {
+			type: RecordType.DiagramDeco,
+			index: this.activeIndex,
+			command: command,
+			prev: prev
+		};
+		this.records.push(rec);
+
+		return true;
+	}
 	private addArrow(): void
 	{
+		console.log("arrow " + this.diagramOption.from + " -> " + this.activeIndex);
+
 		if (!(this.activeField instanceof Diagram))
 			return;
 
@@ -1047,8 +1065,8 @@ class Application
 		d.addArrow(this.diagramOption.from, this.activeIndex,
 			this.diagramOption.num, this.diagramOption.style, this.diagramOption.head);
 
-		var rec: RecordCreAnnArrow = {
-			type: RecordType.CreAnnArrow,
+		var rec: RecordDiagramEdit = {
+			type: RecordType.DiagramEdit,
 			index: this.activeIndex,
 			insert: true,
 			option: <DiagramOption> $.extend({}, this.diagramOption)
@@ -1059,6 +1077,8 @@ class Application
 	}
 	private removeArrow(): void
 	{
+		console.log("remove " + this.diagramOption.from + " -> " + this.activeIndex);
+
 		if (!(this.activeField instanceof Diagram))
 			return;
 
@@ -1067,13 +1087,53 @@ class Application
 		var removed = d.removeArrow(this.diagramOption.from, this.activeIndex);
 
 		var i = removed.from.row * d.cols + removed.from.col;
-		var rec: RecordCreAnnArrow = {
-			type: RecordType.CreAnnArrow,
+		var rec: RecordDiagramEdit = {
+			type: RecordType.DiagramEdit,
 			index: this.activeIndex,
 			insert: false,
 			option: <DiagramOption> $.extend(removed, { from: i })
 		};
 		this.records.push(rec);
+	}
+
+	//////////////////////////////////////
+	/*  matrix editing					*/
+	//////////////////////////////////////
+	private modifyMatrix(horizontal: boolean, extend: boolean): void
+	{
+		var leave = false;
+		var m: Matrix;
+		if (this.activeField instanceof Matrix)
+			m = <Matrix> this.activeField;
+		else if (this.activeField.parent instanceof Matrix)
+		{
+			leave = true;
+			this.leaveFormula(false, true);
+			m = <Matrix> this.activeField;
+		}
+		else
+			return;
+
+		if (!extend)
+		{
+			if (horizontal && m.nonEmpty(0, m.cols - 1, m.rows, 1))
+				this.removeToken(m.cols - 1, m.cols * m.rows - 1);
+			else if (!horizontal && m.nonEmpty(m.rows - 1, 0, 1, m.cols))
+				this.removeToken(m.cols * (m.rows - 1), m.cols * m.rows - 1);
+		}
+
+		(extend ? m.extend : m.shrink).bind(m)(horizontal);
+
+		var rec: RecordEditMatrix = {
+			type: RecordType.EditMatrix,
+			index: this.activeIndex,
+			extend: extend,
+			horizontal: horizontal
+		};
+		this.records.push(rec);
+
+		if (leave)
+			this.enterFormula(false);
 	}
 
 	//////////////////////////////////////
@@ -1117,12 +1177,13 @@ class Application
 
 		return false;
 	}
-	private leaveFormula(forward: boolean): boolean
+	private leaveFormula(forward: boolean, single?: boolean): boolean
 	{
 		var t: TokenSeq = this.activeField;
 
 		if (t.parent instanceof Structure
-			&& !(this.markedIndex >= 0 && t.parent instanceof Matrix
+			&& !(single
+				|| this.markedIndex >= 0 && t.parent instanceof Matrix
 				|| t.parent instanceof Diagram))
 		{
 			var rec0: RecordTransfer = {
@@ -1235,8 +1296,8 @@ class Application
 
 		f.insert(this.activeIndex, t);
 
-		var rec: RecordCreAnn = {
-			type: RecordType.CreAnn,
+		var rec: RecordEdit = {
+			type: RecordType.Edit,
 			index: this.activeIndex,
 			insert: true,
 			contents: [t.clone(null)]
@@ -1264,23 +1325,15 @@ class Application
 			var mr = Math.min(m.rows, a.rows - p.row);
 			var mc = Math.min(m.cols, a.cols - p.col);
 
-		outerloop:
-			for (var i = 0; i < mr; i++)
-				for (var j = 0; j < mc; j++)
-				{
-					if (a.elems[this.activeIndex + i * a.cols + j].tokens.length > 0)
-					{
-						this.removeToken(this.activeIndex,
-							this.activeIndex + (mr - 1) * a.cols + (mc - 1));
-						break outerloop;
-					}
-				}
+			if (a.nonEmpty(p.row, p.col, mr, mc))
+				this.removeToken(this.activeIndex,
+					this.activeIndex + (mr - 1) * a.cols + (mc - 1));
 		}
 
 		console.log("paste " + t.toString());
 
-		var rec: RecordCreAnn = {
-			type: RecordType.CreAnn,
+		var rec: RecordEdit = {
+			type: RecordType.Edit,
 			index: this.activeIndex,
 			insert: true,
 			contents: t.map(x => x.clone(null))
@@ -1296,8 +1349,8 @@ class Application
 		var removed = this.activeField.remove(from, to);
 		var index = Math.min(from, to);
 
-		var rec: RecordCreAnn = {
-			type: RecordType.CreAnn,
+		var rec: RecordEdit = {
+			type: RecordType.Edit,
 			index: index,
 			insert: false,
 			contents: removed
@@ -1421,7 +1474,7 @@ class Application
 				break;
 
 			case StructType.Diagram:
-				this.renderAfterLayout.push(s);
+				this.afterLayout.push(s);
 			case StructType.Matrix:
 				var m = <Matrix> s;
 				e = $("<div/>").addClass("matrix");
@@ -1595,6 +1648,62 @@ class Application
 			e.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
 
 		return e;
+	}
+	private drawAfterLayout(): void
+	{
+		this.ghost.prop({
+			"width": document.body.clientWidth,
+			"height": document.body.clientHeight
+		});
+		var ctx = (<HTMLCanvasElement> this.ghost[0]).getContext("2d");
+
+		for (var i = 0; i < this.afterLayout.length; i++)
+		{
+			if (this.afterLayout[i] instanceof Diagram)
+				this.drawDiagram(ctx, <Diagram> this.afterLayout[i]);
+		}
+	}
+	private drawDiagram(ctx: CanvasRenderingContext2D, d: Diagram): void
+	{
+		d.decolations.forEach((deco, i) =>
+		{
+			d.drawFrame(ctx, i, deco);
+		});
+
+		this.drawArrows(ctx, d);
+	}
+	private drawArrows(ctx: CanvasRenderingContext2D, d: Diagram): void
+	{
+		var selected = false;
+		var from = d.pos(this.diagramOption.from);
+		var to = d.pos(this.activeIndex);
+
+		d.arrows.forEach((a, i) =>
+		{
+			if (a.from.row == from.row && a.from.col == from.col
+				&& a.to.row == to.row && a.to.col == to.col)
+			{
+				d.drawArrow(ctx, a, this.activeArrowColor);
+				selected = true;
+				if (this.subIndex < 0)
+					this.subIndex = i;
+			}
+			else
+				d.drawArrow(ctx, a);
+		});
+		if (d == this.activeField && this.diagramOption.from >= 0 && !selected)
+		{
+			var a: Arrow = {
+				from:	d.pos(this.diagramOption.from),
+				to:		d.pos(this.activeIndex),
+				style:	this.diagramOption.style,
+				head:	this.diagramOption.head,
+				num:	this.diagramOption.num
+			};
+			d.drawArrow(ctx, a, this.intendedArrowColor);
+		}
+		if (!selected)
+			this.subIndex = -1;
 	}
 }
 

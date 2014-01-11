@@ -158,10 +158,8 @@ class Structure extends Token /* TokenSeq */
 		else
 			return -1;
 	}
-	public remove(from: number, to?: number): Token[]
+	public remove(from: number, to: number): Token[]
 	{
-		if (to === undefined)
-			to = from;
 		var i = Math.min(from);
 		var j = Math.max(to);
 		var r = this.elems.slice(i, j + 1);
@@ -237,7 +235,7 @@ class Matrix extends Structure
 	{
 		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols)
 		{
-			console.error("[Matrix.token] out of range : " + r + "," + c);
+			console.error("[Matrix.tokenAt] out of range : " + r + "," + c);
 			return null;
 		}
 		else if (value !== undefined)
@@ -246,7 +244,7 @@ class Matrix extends Structure
 			return this.elems[r * this.cols + c];
 	}
 
-	public remove(from: number, to?: number): Token[]
+	public remove(from: number, to: number): Token[]
 	{
 		return [this.cloneArea(from, to, true)];
 	}
@@ -256,17 +254,12 @@ class Matrix extends Structure
 	}
 	public cloneArea(from: number, to: number, erase: boolean): Matrix
 	{
-		if (to === undefined)
-			to = from;
-
-		var ai = Math.floor(from / this.cols);
-		var aj = from % this.cols;
-		var mi = Math.floor(to / this.cols);
-		var mj = to % this.cols;
-		var i1 = Math.min(ai, mi);
-		var j1 = Math.min(aj, mj);
-		var i2 = Math.max(ai, mi);
-		var j2 = Math.max(aj, mj);
+		var a = this.pos(from);
+		var b = this.pos(to);
+		var i1 = Math.min(a.row, b.row);
+		var j1 = Math.min(a.col, b.col);
+		var i2 = Math.max(a.row, b.row);
+		var j2 = Math.max(a.col, b.col);
 
 		return this.cloneRect(i1, j1, i2, j2, erase);
 	}
@@ -287,7 +280,7 @@ class Matrix extends Structure
 	public paste(index: number, tokens: Token[]): number
 	{
 		if (tokens.length != 1 || !(tokens[0] instanceof Matrix))
-			super.paste(index, tokens);
+			return super.paste(index, tokens);
 
 		var m = <Matrix> tokens[0];
 		var p = this.pos(index);
@@ -309,7 +302,7 @@ class Matrix extends Structure
 		return m;
 	}
 
-	public extend = (horizontal: boolean): void =>
+	public extend(horizontal: boolean): void
 	{
 		if (horizontal)
 		{
@@ -324,7 +317,7 @@ class Matrix extends Structure
 			this.rows++;
 		}
 	}
-	public shrink = (horizontal: boolean): void =>
+	public shrink(horizontal: boolean): void
 	{
 		if (horizontal)
 		{
@@ -343,7 +336,7 @@ class Matrix extends Structure
 		}
 	}
 
-	public around = (f: Formula, horizontal: boolean, forward: boolean): Formula =>
+	public around(f: Formula, horizontal: boolean, forward: boolean): Formula
 	{
 		var i = this.elems.indexOf(f);
 
@@ -365,6 +358,19 @@ class Matrix extends Structure
 		}
 
 		return this.tokenAt(r, c);
+	}
+
+	public nonEmpty(i0: number, j0: number, rows: number, cols: number): boolean
+	{
+		for (var i = 0; i < rows; i++)
+			for (var j = 0; j < cols; j++)
+			{
+				if (this.tokenAt(i0 + i, j0 + j).tokens.length > 0)
+					return true;
+			}
+
+
+		return false;
 	}
 
 	public toString(): string
