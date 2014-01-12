@@ -28,7 +28,7 @@ interface Decoration
 class Diagram extends Matrix
 {
 	arrows: Arrow[];
-	decolations: Decoration[];
+	decorations: Decoration[][];
 
 	private static wavy: { [color: string]: HTMLCanvasElement } = {};
 	private static interShaft = 3;
@@ -39,53 +39,45 @@ class Diagram extends Matrix
 
 		this.type = StructType.Diagram;
 		this.arrows = [];
-		this.decolations = [];
-	}
+		this.decorations = [];
 
-	public decorationAt(r: number, c: number, value?: Decoration): Decoration
-	{
-		var i = r * this.cols + c;
-
-		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols)
-		{
-			console.error("[Diagram.decorationAt] out of range : " + r + "," + c);
-			return null;
-		}
-		else if (value)
-			return this.decolations[i] = value;
-		else if (i in this.decolations)
-			return this.decolations[i];
-		else
-			return null;
+		for (var i = 0; i < rows; i++)
+			this.decorations.push([]);
 	}
 
 	public toggleFrame(index: number): void
 	{
-		if (index in this.decolations)
-			this.decolations.splice(index, 1);
+		var p = this.pos(index);
+
+		if (this.decorations[p.row][p.col])
+			this.decorations[p.row][p.col] = null;
 		else
-			this.decolations[index] = {
+			this.decorations[p.row][p.col] = {
 				size: 0, circle: false, double: false, style: StrokeStyle.Plain
 			};
 	}
 	public alterFrameStyle(index: number, toggleCircle?: boolean, toggleDouble?: boolean, style?: StrokeStyle): void
 	{
-		if (!(index in this.decolations))
+		var p = this.pos(index);
+
+		if (!this.decorations[p.row][p.col])
 			this.toggleFrame(index);
 
 		if (toggleCircle)
-			this.decolations[index].circle = !this.decolations[index].circle;
+			this.decorations[p.row][p.col].circle = !this.decorations[p.row][p.col].circle;
 		if (toggleDouble)
-			this.decolations[index].double = !this.decolations[index].double;
+			this.decorations[p.row][p.col].double = !this.decorations[p.row][p.col].double;
 		if (style !== undefined)
-			this.decolations[index].style = style;
+			this.decorations[p.row][p.col].style = style;
 	}
 	public changeFrameSize(index: number, increase: boolean): void
 	{
-		if (!(index in this.decolations))
+		var p = this.pos(index);
+
+		if (!this.decorations[p.row][p.col])
 			return;
 
-		this.decolations[index].size += (increase ? 1 : -1);
+		this.decorations[p.row][p.col].size += (increase ? 1 : -1);
 	}
 
 	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): void
@@ -129,11 +121,11 @@ class Diagram extends Matrix
 				if (erase)
 					this.tokenAt(i + i1, j + j1, new Formula(this));
 
-				var k = (i1 + i) * this.cols + (j1 + j);
-				if (k in this.decolations)
+				if (this.decorations[i1 + i][j1 + j])
 				{
-					d.decorationAt(i, j, erase
-						? this.decolations.splice(k, 1)[0] : this.decolations[k]);
+					d.decorations[i][j] = this.decorations[i1 + i][j1 + j];
+					if (erase)
+						this.decorations[i1 + i][j1 + j] = null;
 				}
 			}
 
@@ -192,27 +184,67 @@ class Diagram extends Matrix
 		}
 		else
 		{
+			var x = rect.left - 3 * deco.size;
+			var y = rect.top - 3 * deco.size;
 			var w = rect.width + 6 * deco.size;
 			var h = rect.height + 6 * deco.size;
-			ctx.strokeRect(rect.left, rect.top, w, h);
+			ctx.strokeRect(x, y, w, h);
 			if (deco.double)
-				ctx.strokeRect(rect.left + 3, rect.top + 3, w - 6, h - 6);
+				ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
 		}
 
 		ctx.restore();
 	}
 	public drawArrow(ctx: CanvasRenderingContext2D, arrow: Arrow, color?: string): void
 	{
+		var len = (x, y) => Math.sqrt(x * x + y * y);
+
 		var a = this.tokenAt(arrow.from.row, arrow.from.col).renderedElem[0];
 		var b = this.tokenAt(arrow.to.row, arrow.to.col).renderedElem[0];
 		var rec1 = a.getBoundingClientRect();
 		var rec2 = b.getBoundingClientRect();
 		var scrollx = document.documentElement.scrollLeft || document.body.scrollLeft;
 		var scrolly = document.documentElement.scrollTop || document.body.scrollTop;
-		var ax = (rec1.left + rec1.right) / 2;
-		var ay = (rec1.top + rec1.bottom) / 2;
-		var bx = (rec2.left + rec2.right) / 2;
-		var by = (rec2.top + rec2.bottom) / 2;
+		var acx = (rec1.left + rec1.right) / 2;
+		var acy = (rec1.top + rec1.bottom) / 2;
+		var bcx = (rec2.left + rec2.right) / 2;
+		var bcy = (rec2.top + rec2.bottom) / 2;
+		var dx = bcx - acx;
+		var dy = bcy - acy;
+		var rc = len(dx, dy);
+
+		var dec1 = this.decorations[arrow.from.row][arrow.from.col];
+		var dec2 = this.decorations[arrow.to.row][arrow.to.col];
+
+		var ax, ay: number;
+		var bx, by: number;
+		if (dec1 && dec1.circle)
+		{
+			var r1 = Math.max(rec1.width, rec1.height) / 2 + 3 * (dec1.size - 2);
+			ax = acx + r1 * dx / rc;
+			ay = acy + r1 * dy / rc;
+		}
+		else if (dy / dx < rec1.height / rec1.width && dy / dx > -rec1.height / rec1.width)
+		{
+			var sgn = (dx > 0 ? 1 : -1);
+			var w = rec1.width / 2 + 3 * (dec1 ? dec1.size : 0);
+			ax = acx + sgn * w;
+			ay = acy + sgn * dy / dx * w;
+		}
+		else
+		{
+			var sgn = (dy > 0 ? 1 : -1);
+			var h = rec1.height / 2 + 3 * (dec1 ? dec1.size : 0);
+			ax = acx + sgn * dx / dy * h;
+			ay = acy + sgn * h;
+		}
+		var r = len(bcx - ax, bcy - ay);
+		if (dec2 && dec2.circle)
+			r -= Math.max(rec2.width, rec2.height) / 2 + 3 * (dec2.size - 2);
+		else if (dy / dx < rec2.height / rec2.width && dy / dx > -rec2.height / rec2.width)
+			r -= (rec2.width / 2 + 3 * (dec2 ? dec2.size : 0)) * Math.sqrt(1 + dy * dy / (dx * dx));
+		else
+			r -= (rec2.height / 2 + 3 * (dec2 ? dec2.size : 0)) * Math.sqrt(1 + dx * dx / (dy * dy));
 
 		ctx.save();
 		if (color)
@@ -220,9 +252,6 @@ class Diagram extends Matrix
 		ctx.beginPath();
 
 		ctx.translate(ax + scrollx, ay + scrolly);
-		var dx = bx - ax;
-		var dy = by - ay;
-		var r = Math.sqrt(dx * dx + dy * dy);
 		var adj = 3;	// for wavy arrow (pattern adjustment)
 		ctx.rotate(Math.atan2(dy, dx));
 		ctx.translate(0, -adj);
@@ -302,6 +331,23 @@ class Diagram extends Matrix
 			ctx["mozDash"] = a;
 	}
 
+	public extend(horizontal: boolean): void
+	{
+		if (!horizontal)
+			this.decorations.push([]);
+
+		super.extend(horizontal);
+	}
+	public shrink(horizontal: boolean): void
+	{
+		if (horizontal)
+			this.decorations.forEach(r => r.splice(this.cols - 1, 1));
+		if (!horizontal)
+			this.decorations.pop();
+
+		super.shrink(horizontal);
+	}
+
 	public paste(index: number, tokens: Token[]): number
 	{
 		var n = super.paste(index, tokens);
@@ -315,7 +361,7 @@ class Diagram extends Matrix
 		var c = Math.min(d.cols, this.cols - p.col);
 		for (var i = 0; i < r; i++)
 			for (var j = 0; j < c; j++)
-				this.decorationAt(p.row + i, p.col + j, d.decorationAt(i, j));
+				this.decorations[p.row + i][p.col + j] = d.decorations[i][j];
 		d.arrows.forEach(a =>
 		{
 			var b: Arrow = {
@@ -337,8 +383,21 @@ class Diagram extends Matrix
 		});
 		return m;
 	}
+	public nonEmpty(i0: number, j0: number, rows: number, cols: number): boolean
+	{
+		return super.nonEmpty(i0, j0, rows, cols)
+			|| this.decorations.some((r, i) =>
+				r.some((d, j) =>
+					i >= i0 && i - i0 < rows && j >= j0 && j - j0 < cols
+				))
+			|| this.arrows.some(a =>
+				a.from.row >= i0 && a.from.row - i0 < rows && a.from.col >= j0 && a.from.col - j0 < cols
+				|| a.to.row >= i0 && a.to.row - i0 < rows && a.to.col >= j0 && a.to.col - j0 < cols);
+	}
 	public toString(): string
 	{
-		return "Diagram" + this.rows + "," + this.cols + "(a:" + this.arrows.length + ",d:" + Object.keys(this.decolations).length + ")[" + this.elems.map(f => f.toString()).join(", ") + "]";
+		return "Diagram" + this.rows + "," + this.cols
+			+ "(a:" + this.arrows.length + ",d:" + this.decorations.reduce<number>((s, r) => s + r.filter(d => d ? true : false).length, 0)
+			+ ")[" + this.elems.map(f => f.toString()).join(", ") + "]";
 	}
 }

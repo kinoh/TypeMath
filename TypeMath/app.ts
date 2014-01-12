@@ -422,7 +422,7 @@ class Application
 					this.removeArrow();
 				else if (this.activeIndex > 0)
 				{
-					this.removeToken(this.activeIndex - 1, this.activeIndex);
+					this.removeToken(this.activeIndex - (this.activeField instanceof Structure ? 0 : 1), this.activeIndex);
 				}
 				break;
 			case ControlKey.Shift:
@@ -1012,8 +1012,12 @@ class Application
 
 		var d = <Diagram> this.activeField;
 		var prev: StrokeStyle = null;
-		if (this.activeIndex in d.decolations)
-			prev = d.decolations[this.activeIndex].style;
+		if (this.activeIndex in d.decorations)
+		{
+			var p = d.pos(this.activeIndex);
+			if (d.decorations[p.row][p.col])
+				prev = d.decorations[p.row][p.col].style;
+		}
 
 		switch (command)
 		{
@@ -1665,10 +1669,13 @@ class Application
 	}
 	private drawDiagram(ctx: CanvasRenderingContext2D, d: Diagram): void
 	{
-		d.decolations.forEach((deco, i) =>
-		{
-			d.drawFrame(ctx, i, deco);
-		});
+		d.decorations.forEach((r, i) =>
+			r.forEach((deco, j) =>
+			{
+				if (deco)
+					d.drawFrame(ctx, i * d.cols + j, deco);
+			}
+		));
 
 		this.drawArrows(ctx, d);
 	}
