@@ -65,6 +65,14 @@ class LaTeX
 		{
 			return (<Num>t).value.toString();
 		}
+		else if (t instanceof Diagram)
+		{
+			var d = <Diagram> t;
+
+			return "\\xymatrix {"
+				+ this.transDiagram(d, indent)
+				+ "}";
+		}
 		else if (t instanceof Matrix)
 		{
 			var m = <Matrix> t;
@@ -116,6 +124,115 @@ class LaTeX
 			return "\\" + LaTeX.symbols[str];
 		else
 			return str;
+	}
+	private static transDiagram(d: Diagram, indent: string): string
+	{
+		var ln = "\n";
+		var str = "";
+
+		var arrows: Arrow[][][] = [];
+
+		for (var i = 0; i < d.rows; i++)
+		{
+			arrows.push([]);
+			for (var j = 0; j < d.cols; j++)
+				arrows[i].push([]);
+		}
+		for (var i = 0; i < d.arrows.length; i++)
+		{
+			var a = d.arrows[i];
+			arrows[a.from.row][a.from.col].push(a);
+		}
+
+		str += ln;
+		for (var i = 0; i < d.rows; i++)
+		{
+			str += d.elems.slice(d.cols * i, d.cols * (i + 1))
+				.map((o, j) =>
+				{
+					var s = LaTeX.trans(o);
+					var dec = LaTeX.transDecoration(d.decorations[i][j]);
+					if (dec != "")
+						s = "*" + dec + "{" + s + "}";
+					s += arrows[i][j].map(a => LaTeX.transArrow(a)).join(" ");
+					return s;
+				}).join(" & ") + " \\\\" + ln;
+		}
+
+		return str;
+	}
+	private static transDecoration(deco: Decoration): string
+	{
+		if (!deco)
+			return "";
+
+		var s = "";
+		
+		if (deco.size > 0)
+			s = LaTeX.repeat("+", deco.size);
+		else if (deco.size < 0)
+			s = LaTeX.repeat("-", -deco.size);
+
+		if (deco.circle)
+			s += "[o]";
+
+		switch (deco.style)
+		{
+			case StrokeStyle.Plain: s += "[F" + (deco.double ? "=" : "-") + "]"; break;
+			case StrokeStyle.Dashed: s += "[F--]"; break;
+			case StrokeStyle.Dotted: s += "[F.]"; break;
+			case StrokeStyle.Wavy: s += "[F~]"; break;
+		}
+
+		return s;
+	}
+	private static transArrow(a: Arrow): string
+	{
+		var s = "";
+		var style = "";
+		var doubled = false;
+
+		switch (a.style)
+		{
+			case StrokeStyle.Plain: style = ((doubled = a.num == 2) ? "=" : "-"); break;
+			case StrokeStyle.Dashed: style = ((doubled = a.num == 2) ? "==" : "--"); break;
+			case StrokeStyle.Dotted: style = ((doubled = a.num == 2) ? ":" : "."); break;
+			case StrokeStyle.Wavy: style = "~"; break;
+		}
+		s += "\\ar@";
+		if (!doubled && a.num != 1)
+			s += a.num.toString();
+		s += "{" + style + a.head + "}";
+
+		var dir = "";
+		var dc = a.to.col - a.from.col;
+		var dr = a.to.row - a.from.row;
+		if (dc > 0)
+			dir = LaTeX.repeat("r", dc);
+		else if (dc < 0)
+			dir = LaTeX.repeat("l", -dc);
+		if (dr > 0)
+			dir += LaTeX.repeat("d", dr);
+		else if (dr < 0)
+			dir += LaTeX.repeat("u", -dr);
+		s += "[" + dir + "]";
+
+		if (!a.label.empty())
+		{
+			if (a.labelPos == LabelPosotion.Middle)
+				s += " |";
+			else if (a.labelPos == LabelPosotion.Right)
+				s += "_";
+			else
+				s += "^";
+
+			var t = LaTeX.trans(a.label);
+			if (t.length > 1)
+				t = "{" + t + "}";
+			s += t;
+		}
+
+		return s;
 	}
 	private static transMatrix(m: Matrix, indent: string): string
 	{
@@ -170,7 +287,8 @@ class LaTeX
 	}
 	private static transFormula(f: Formula, indent: string): string
 	{
-		if (f.tokens.length == 1 && f.tokens[0] instanceof Matrix)
+		if (f.tokens.length == 1 && f.tokens[0] instanceof Matrix
+			&& !(f.tokens[0] instanceof Diagram))
 		{
 			var br = f.prefix + f.suffix;
 
@@ -222,5 +340,13 @@ class LaTeX
 		}
 
 		return pre + f.tokens.map(t => LaTeX.trans(t, indent)).join(separator) + suf;
+	}
+
+	private static repeat = (x, n) =>
+	{
+		var arr = [];
+		for (var i = 0; i < n; i++)
+			arr.push(x);
+		return arr.join("");
 	}
 }
