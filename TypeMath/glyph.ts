@@ -161,9 +161,9 @@ class GlyphFactory
     private data: { [key: string]: Glyph } = {};
     private cache: { [key: string]: string } = {};
 
-    constructor(canvas: HTMLCanvasElement)
+    constructor()
     {
-        this.canvas = canvas;
+        this.canvas = document.createElement("canvas");
 
         this.data["("] = new Glyph(24, 64,
             new Bezier(20, 4, 20, 60, 4, 2, 4, 62, 0, 0, 3));

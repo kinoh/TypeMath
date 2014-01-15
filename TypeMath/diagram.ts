@@ -233,8 +233,6 @@ class Diagram extends Matrix
 		var b = this.tokenAt(arrow.to.row, arrow.to.col).renderedElem[0];
 		var rec1 = a.getBoundingClientRect();
 		var rec2 = b.getBoundingClientRect();
-		var scrollx = document.documentElement.scrollLeft || document.body.scrollLeft;
-		var scrolly = document.documentElement.scrollTop || document.body.scrollTop;
 		var acx = (rec1.left + rec1.right) / 2;
 		var acy = (rec1.top + rec1.bottom) / 2;
 		var bcx = (rec2.left + rec2.right) / 2;
@@ -332,7 +330,7 @@ class Diagram extends Matrix
 			else
 			{
 				ctx.fillStyle = "#fff";
-				ctx.fillRect(x - scrollx, y - scrolly, lrec.width + 2, lrec.height);
+				ctx.fillRect(x - box.left, y - box.top, lrec.width + 2, lrec.height);
 			}
 
 			label.css({

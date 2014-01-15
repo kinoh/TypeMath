@@ -146,9 +146,7 @@ class Application
 
 		this.render();
 
-		var canvas = $("<canvas/>").addClass("hiddenWorks");
-		$(document.body).append(canvas);
-		this.glyph = new GlyphFactory(<HTMLCanvasElement> canvas[0]);
+		this.glyph = new GlyphFactory();
 	}
 	private enrichKeywords(): void
 	{
