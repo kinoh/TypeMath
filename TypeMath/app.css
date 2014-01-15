@@ -8,11 +8,15 @@
 	margin: 1em;
 }
 
+#fieldFrame
+{
+	position: relative;
+}
+
 #field
 {
 	border: solid 1px #000;
 	padding: 1em;
-	position: relative;
 }
 
 #latex

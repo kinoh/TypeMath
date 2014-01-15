@@ -1740,31 +1740,32 @@ class Application
 	}
 	private drawAfterLayout(): void
 	{
+		var box = this.field[0].getBoundingClientRect();
 		this.ghost.prop({
-			"width": document.body.clientWidth,
-			"height": document.body.clientHeight
+			"width": box.width,
+			"height": box.height
 		});
 		var ctx = (<HTMLCanvasElement> this.ghost[0]).getContext("2d");
 
 		for (var i = 0; i < this.afterLayout.length; i++)
 		{
 			if (this.afterLayout[i] instanceof Diagram)
-				this.drawDiagram(ctx, <Diagram> this.afterLayout[i]);
+				this.drawDiagram(ctx, box, <Diagram> this.afterLayout[i]);
 		}
 	}
-	private drawDiagram(ctx: CanvasRenderingContext2D, d: Diagram): void
+	private drawDiagram(ctx: CanvasRenderingContext2D, box: ClientRect, d: Diagram): void
 	{
 		d.decorations.forEach((r, i) =>
 			r.forEach((deco, j) =>
 			{
 				if (deco)
-					d.drawFrame(ctx, i * d.cols + j, deco);
+					d.drawFrame(ctx, box, i * d.cols + j, deco);
 			}
 		));
 
-		this.drawArrows(ctx, d);
+		this.drawArrows(ctx, box, d);
 	}
-	private drawArrows(ctx: CanvasRenderingContext2D, d: Diagram): void
+	private drawArrows(ctx: CanvasRenderingContext2D, box: ClientRect, d: Diagram): void
 	{
 		var selected = false;
 		var from = d.pos(this.diagramOption.from);
@@ -1787,12 +1788,12 @@ class Application
 			if (a.from.row == from.row && a.from.col == from.col
 				&& a.to.row == to.row && a.to.col == to.col)
 			{
-				d.drawArrow(ctx, label, a, this.activeField == d ? this.activeArrowColor : null);
+				d.drawArrow(ctx, box, label, a, this.activeField == d ? this.activeArrowColor : null);
 				selected = true;
 				this.subIndex = i;
 			}
 			else
-				d.drawArrow(ctx, label, a);
+				d.drawArrow(ctx, box, label, a);
 		});
 		if (d == this.activeField && this.diagramOption.from >= 0 && !selected)
 		{
@@ -1804,7 +1805,7 @@ class Application
 				num:	this.diagramOption.num,
 				label: null, labelPos: null
 			};
-			d.drawArrow(ctx, null, a, this.intendedArrowColor);
+			d.drawArrow(ctx, box, null, a, this.intendedArrowColor);
 		}
 		if (!selected)
 			this.subIndex = -1;

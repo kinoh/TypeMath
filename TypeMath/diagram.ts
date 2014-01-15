@@ -187,12 +187,14 @@ class Diagram extends Matrix
 		return d;
 	}
 
-	public drawFrame(ctx: CanvasRenderingContext2D, index: number, deco: Decoration, color?: string): void
+	public drawFrame(ctx: CanvasRenderingContext2D, box: ClientRect, index: number, deco: Decoration, color?: string): void
 	{
 		var a = this.elems[index].renderedElem[0];
 		var rect = a.getBoundingClientRect();
 
 		ctx.save();
+
+		ctx.translate(-box.left, -box.top);
 
 		Diagram.setStyle(ctx, deco.style, color);
 		if (color)
@@ -223,7 +225,7 @@ class Diagram extends Matrix
 
 		ctx.restore();
 	}
-	public drawArrow(ctx: CanvasRenderingContext2D, label: JQuery, arrow: Arrow, color?: string): void
+	public drawArrow(ctx: CanvasRenderingContext2D, box: ClientRect, label: JQuery, arrow: Arrow, color?: string): void
 	{
 		var len = (x, y) => Math.sqrt(x * x + y * y);
 
@@ -279,7 +281,7 @@ class Diagram extends Matrix
 			ctx.strokeStyle = color;
 		ctx.beginPath();
 
-		ctx.translate(ax + scrollx, ay + scrolly);
+		ctx.translate(ax - box.left, ay - box.top);
 		var adj = 3;	// for wavy arrow (pattern adjustment)
 		ctx.rotate(Math.atan2(dy, dx));
 		ctx.translate(0, -adj);
@@ -315,7 +317,6 @@ class Diagram extends Matrix
 
 		if (arrow.label !== null && label !== null)
 		{
-			var frec = $("#field")[0].getBoundingClientRect();
 			var lrec = arrow.label.renderedElem[0].getBoundingClientRect();
 			var ldiag = Math.sqrt(lrec.width * lrec.width + lrec.height * lrec.height) / 2;
 			var x = (acx + bcx) / 2 - lrec.width / 2;
@@ -335,8 +336,8 @@ class Diagram extends Matrix
 			}
 
 			label.css({
-				"left": x - frec.left,
-				"top": y - frec.top
+				"left": x - box.left,
+				"top": y - box.top
 			});
 		}
 	}
