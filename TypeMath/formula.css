@@ -1,20 +1,20 @@
 ﻿.math
 {
 	display: flex; display: -moz-box; display: -webkit-box;
-	box-align: center; -moz-box-align: center; -webkit-box-align: center; -ms-flex-align: center;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
-	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
+	flex-direction: row; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
+	-moz-box-direction: normal; -webkit-box-direction: normal;
+	justify-content: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	align-items: center; -moz-box-align: center; -webkit-box-align: center; -ms-flex-align: center;
 	text-align: center;
 }
 
 .embraced
 {
 	display: flex; display: -moz-box; display: -webkit-box;
-	box-align: stretch; -moz-box-align: stretch; -webkit-box-align: stretch; -ms-flex-align: stretch;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
-	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
+	flex-direction: row; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-flex-direction: row;
+	-moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	justify-content: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	align-items: stretch; -moz-box-align: stretch; -webkit-box-align: stretch; -ms-flex-align: stretch;
 	text-align: center;
 }
 .bracket
@@ -28,8 +28,8 @@
 .frac
 {
 	display: flex; display: -moz-box; display: -webkit-box;
-	box-orient: vertical; -moz-box-orient: vertical; -webkit-box-orient: vertical; -ms-flex-direction: column;
-	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
+	flex-direction: column; -moz-box-orient: vertical; -webkit-box-orient: vertical; -ms-flex-direction: column;
+	-moz-box-direction: normal; -webkit-box-direction: normal;
 }
 
 .reverseOrdered
@@ -84,10 +84,10 @@
 .formula
 {
 	display: flex; display: -moz-box; display: -webkit-box;
-	box-align: end; -moz-box-align: end; -webkit-box-align: end; -ms-flex-align: end;
-	box-orient: horizontal; -moz-box-orient: horizontal; -webkit-box-orient: horizontal; -ms-flex-direction: row;
-	box-pack: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
-	flex-direction: column; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-box-direction: normal;
+	flex-direction: row; -moz-box-direction: normal; -webkit-box-direction: normal; -ms-flex-direction: row;
+	-moz-box-orient: horizontal; -webkit-box-orient: horizontal;
+	justify-content: center; -moz-box-pack: center; -webkit-box-pack: center; -ms-flex-pack: center;
+	align-items: flex-end; -moz-box-align: end; -webkit-box-align: end; -ms-flex-align: end;
 }
 .formulaStyled
 {
