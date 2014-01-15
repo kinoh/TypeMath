@@ -7,6 +7,12 @@ enum StrokeStyle
 	Dashed,
 	Wavy
 }
+enum LabelPosotion
+{
+	Left,
+	Middle,
+	Right
+}
 
 interface Arrow
 {
@@ -15,6 +21,8 @@ interface Arrow
 	num: number;
 	style: StrokeStyle;
 	head: string;
+	label: Formula;
+	labelPos: LabelPosotion;
 }
 
 interface Decoration
@@ -80,32 +88,52 @@ class Diagram extends Matrix
 		this.decorations[p.row][p.col].size += (increase ? 1 : -1);
 	}
 
-	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): void
+	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): number
 	{
 		var a: Arrow = {
 			from: this.pos(from),
 			to: this.pos(to),
 			num: num,
 			style: style,
-			head: head
+			head: head,
+			label: new Formula(this),
+			labelPos: LabelPosotion.Left
 		};
-		this.arrows.push(a);
+		var i = this.arrows.push(a);
+
+		return i - 1;
 	}
-	public removeArrow(from: number, to: number): Arrow
+	public removeArrow(from: number, to: number, n: number): Arrow
+	{
+		var i = this.findArrow(from, to, n);
+
+		return i >= 0 ? this.arrows.splice(i, 1)[0] : null;
+	}
+	public labelArrow(from: number, to: number, n: number, pos: LabelPosotion): Arrow
+	{
+		var i = this.findArrow(from, to, n);
+
+		if (i < 0)
+			return null;
+
+		this.arrows[i].labelPos = pos;
+
+		return this.arrows[i];
+	}
+	public findArrow(from: number, to: number, n: number): number
 	{
 		for (var i = 0; i < this.arrows.length; i++)
 		{
 			var a = this.arrows[i];
 			if (a.from.row * this.cols + a.from.col == from
-				&& a.to.row * this.cols + a.to.col == to)
-			{
-				this.arrows.splice(i, 1);
-				return a;
-			}
+				&& a.to.row * this.cols + a.to.col == to
+				&& n-- == 0)
+				return i;
 		}
 
-		return null;
+		return -1;
 	}
+
 	public cloneArea(from: number, to: number, erase: boolean): Diagram
 	{
 		return <Diagram> super.cloneArea(from, to, erase);
@@ -140,7 +168,7 @@ class Diagram extends Matrix
 				var b: Arrow = {
 					from: { row: a.from.row - i1, col: a.from.col - i1 },
 					to: { row: a.to.row - i1, col: a.to.col - i1 },
-					num: a.num, style: a.style, head: a.head
+					num: a.num, style: a.style, head: a.head, label: a.label.clone(d), labelPos: a.labelPos
 				};
 				d.arrows.push(b);
 			}
@@ -195,7 +223,7 @@ class Diagram extends Matrix
 
 		ctx.restore();
 	}
-	public drawArrow(ctx: CanvasRenderingContext2D, arrow: Arrow, color?: string): void
+	public drawArrow(ctx: CanvasRenderingContext2D, label: JQuery, arrow: Arrow, color?: string): void
 	{
 		var len = (x, y) => Math.sqrt(x * x + y * y);
 
@@ -284,6 +312,33 @@ class Diagram extends Matrix
 		}
 
 		ctx.restore();
+
+		if (arrow.label !== null && label !== null)
+		{
+			var frec = $("#field")[0].getBoundingClientRect();
+			var lrec = arrow.label.renderedElem[0].getBoundingClientRect();
+			var ldiag = Math.sqrt(lrec.width * lrec.width + lrec.height * lrec.height) / 2;
+			var x = (acx + bcx) / 2 - lrec.width / 2;
+			var y = (acy + bcy) / 2 - lrec.height / 2;
+
+			if (arrow.labelPos != LabelPosotion.Middle)
+			{
+				var t = Math.atan2(-dy, dx)
+					+ (arrow.labelPos == LabelPosotion.Left ? 1 : -1) * Math.PI / 2;
+				x += (lrec.width + 2) / 2 * Math.cos(t);
+				y -= lrec.height / 2 * Math.sin(t);
+			}
+			else
+			{
+				ctx.fillStyle = "#fff";
+				ctx.fillRect(x - scrollx, y - scrolly, lrec.width + 2, lrec.height);
+			}
+
+			label.css({
+				"left": x - frec.left,
+				"top": y - frec.top
+			});
+		}
 	}
 	private static setStyle(ctx: CanvasRenderingContext2D, style: StrokeStyle, color: string): void
 	{
@@ -367,21 +422,16 @@ class Diagram extends Matrix
 			var b: Arrow = {
 				from: { row: a.from.row + p.row, col: a.from.col + p.col },
 				to: { row: a.to.row + p.row, col: a.to.col + p.col },
-				num: a.num, style: a.style, head: a.head
+				num: a.num, style: a.style, head: a.head, label: a.label.clone(this), labelPos: a.labelPos
 			};
 			this.arrows.push(b);
 		});
 
 		return n;
 	}
-	public clone(parent: TokenSeq): Matrix
+	public clone(parent: TokenSeq): Diagram
 	{
-		var m = new Matrix(parent, this.rows, this.cols);
-		this.elems.forEach((f, i) =>
-		{
-			m.elems[i] = f.clone(m);
-		});
-		return m;
+		return this.cloneRect(0, 0, this.rows - 1, this.cols - 1, false);
 	}
 	public nonEmpty(i0: number, j0: number, rows: number, cols: number): boolean
 	{

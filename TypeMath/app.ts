@@ -24,7 +24,7 @@ enum RecordType
 	DiagramDeco,
 }
 interface Record { type: RecordType; index: number; }
-interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
+interface RecordTransfer { type: RecordType; index: number; sub?: boolean; deeper: boolean; }
 interface RecordEdit { type: RecordType; index: number; insert: boolean; contents: Token[]; }
 interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
 interface RecordDiagramEdit { type: RecordType; index: number; insert: boolean; option: DiagramOption; }
@@ -33,6 +33,7 @@ interface RecordDiagramDeco { type: RecordType; index: number; command: string; 
 interface DiagramOption
 {
 	from: number;
+	to: number;
 	num: number;
 	style: StrokeStyle;
 	head: string;
@@ -64,6 +65,7 @@ class Application
 	private inputType = InputType.Empty;
 	private diagramOption: DiagramOption = {
 		from: -1,
+		to: -1,
 		num: 1,
 		style: StrokeStyle.Plain,
 		head: ">"
@@ -117,6 +119,12 @@ class Application
 		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
 	};
 
+	private get selectingArrow(): boolean
+	{
+		return this.activeField instanceof Diagram
+			&& this.diagramOption.from >= 0 && this.subIndex >= 0;
+	}
+
 	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, proof: JQuery)
 	{
 		this.field = field;
@@ -161,15 +169,25 @@ class Application
 	}
 	private render(): void
 	{
+		var a = (this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput;
+
+		this.active = null;
 		this.afterLayout = [];
 
 		this.field.empty();
 		this.outputCurrentStyle = [FontStyle.Normal];
 		this.outputToken(this.field, this.formula);
 
-		this.active.text((this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput);
+		if (this.active)
+		{
+			this.active.text(a);
+			a = null;
+		}
 
 		this.drawAfterLayout();
+
+		if (a && this.active)
+			this.active.text(a);
 
 		this.showCandidate();
 
@@ -189,10 +207,11 @@ class Application
 				this.inputType == InputType.Number ? "Number" :
 				this.inputType == InputType.String ? "String" : "Symbol"),
 				"diag.from     = " + this.diagramOption.from,
+				"diag.to       = " + this.diagramOption.to,
 				"diag.num      = " + this.diagramOption.num,
 				"diag.style    = " + this.diagramOption.style,
 				"diag.head     = " + this.diagramOption.head,
-				"diag.subIndex = " + this.subIndex,
+				"subIndex      = " + this.subIndex,
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
@@ -269,8 +288,23 @@ class Application
 		var processed = true;
 
 		if (this.diagramOption.from < 0)
-		{	
-			this.decorateObject(key);
+		{
+			processed = this.decorateObject(key);
+		}
+		else if (this.selectingArrow)
+		{
+			switch (key)
+			{
+				case "^":
+					this.labelArrow(LabelPosotion.Left);
+					break;
+				case "|":
+					this.labelArrow(LabelPosotion.Middle);
+					break;
+				case "_":
+					this.labelArrow(LabelPosotion.Right);
+					break;
+			}
 		}
 		else
 		{
@@ -417,8 +451,7 @@ class Application
 					this.removeToken(this.markedIndex, this.activeIndex);
 					this.markedIndex = -1;
 				}
-				else if (this.activeField instanceof Diagram
-					&& this.subIndex >= 0)
+				else if (this.selectingArrow)
 					this.removeArrow();
 				else if (this.activeIndex > 0)
 				{
@@ -719,7 +752,16 @@ class Application
 				dest = dest.parent;
 			else
 			{
-				var t = dest.token(tr.index);
+				var t: Token;
+				if (tr.sub)
+				{
+					if (dest instanceof Diagram && tr.index in (<Diagram> dest).arrows)
+						t = (<Diagram> dest).arrows[tr.index].label;
+					else
+						console.error("[Application.undo] inconsistent transfer record (arrow label)");
+				}
+				else
+					t = dest.token(tr.index);
 				if (t instanceof Structure || t instanceof Formula)
 					dest = <TokenSeq> t;
 				else
@@ -772,7 +814,7 @@ class Application
 				console.error("[Application.undo] incosistent record");
 
 			if (rea.insert)
-				d.removeArrow(rea.option.from, rea.index);
+				d.removeArrow(rea.option.from, rea.index, 0);
 			else
 				d.addArrow(rea.option.from, rea.index, rea.option.num, rea.option.style, rea.option.head);
 		}
@@ -1077,6 +1119,7 @@ class Application
 		};
 		this.records.push(rec);
 
+		this.activeIndex = this.diagramOption.from;
 		this.diagramOption.from = -1;
 	}
 	private removeArrow(): void
@@ -1088,7 +1131,7 @@ class Application
 
 		var d = <Diagram> this.activeField;
 
-		var removed = d.removeArrow(this.diagramOption.from, this.activeIndex);
+		var removed = d.removeArrow(this.diagramOption.from, this.activeIndex, 0);
 
 		var i = removed.from.row * d.cols + removed.from.col;
 		var rec: RecordDiagramEdit = {
@@ -1098,6 +1141,28 @@ class Application
 			option: <DiagramOption> $.extend(removed, { from: i })
 		};
 		this.records.push(rec);
+	}
+	private labelArrow(pos: LabelPosotion): void
+	{
+		console.log("label " + this.diagramOption.from + " -> " + this.activeIndex);
+
+		if (!(this.activeField instanceof Diagram))
+			return;
+
+		var d = <Diagram> this.activeField;
+		var a = d.labelArrow(this.diagramOption.from, this.activeIndex, 0, pos);
+
+		var rec: RecordTransfer = {
+			type: RecordType.Transfer,
+			index: this.subIndex,
+			sub: true,
+			deeper: true
+		};
+		this.records.push(rec);
+
+		this.diagramOption.to = this.activeIndex;
+		this.activeIndex = 0;
+		this.activeField = a.label;
 	}
 
 	//////////////////////////////////////
@@ -1202,28 +1267,39 @@ class Application
 
 		var f = t.parent;
 		var inFormula = f instanceof Formula;
+		var index: number;
+		var inLabel = false;
 
-		var rec: RecordTransfer = {
-			type: RecordType.Transfer,
-			index: f.indexOf(t),
-			deeper: false
-		};
-		this.records.push(rec);
-
-		var index = f.indexOf(t);
-		this.activeIndex = index;
-		if (inFormula && forward)
-			this.activeIndex++;
+		if (f instanceof Diagram && this.diagramOption.from >= 0)
+		{
+			inLabel = true;
+			index = (<Diagram> f).findArrow(this.diagramOption.from, this.diagramOption.to, 0);
+			this.activeIndex = forward ? this.diagramOption.to : this.diagramOption.from;
+			this.diagramOption.from = -1;
+			this.diagramOption.to = -1;
+		}
+		else
+		{
+			this.activeIndex = index = f.indexOf(t);
+			if (inFormula && forward)
+				this.activeIndex++;
+		}
 		if (this.markedIndex >= 0)
 		{
 			this.markedIndex = index;
 			if (inFormula && !forward)
 				this.markedIndex++;
 		}
-		this.activeField = f;
 
-		if (f instanceof Diagram)
-			this.diagramOption.from = -1;
+		var rec: RecordTransfer = {
+			type: RecordType.Transfer,
+			index: index,
+			sub: inLabel,
+			deeper: false
+		};
+		this.records.push(rec);
+
+		this.activeField = f;
 
 		return true;
 	}
@@ -1244,7 +1320,7 @@ class Application
 			};
 			this.records.push(rec);
 
-			if (dest instanceof Structure)
+			if (dest instanceof Structure && !(dest instanceof Diagram))
 			{
 				var s = <Structure> dest;
 				var j = forward ? 0 : s.elems.length - 1;
@@ -1263,7 +1339,14 @@ class Application
 			else
 				this.activeField = <Formula> dest;
 
-			this.activeIndex = forward ? 0 : this.activeField.count();
+			if (forward)
+				this.activeIndex = 0;
+			else
+			{
+				this.activeIndex = this.activeField.count();
+				if (this.activeIndex > 0 && dest instanceof Matrix)
+					this.activeIndex--;
+			}
 
 			return true;
 		}
@@ -1621,9 +1704,11 @@ class Application
 			var marked = false;
 			for (var i = 0, j = 0; i <= f.count(); i++)
 			{
-				if (i == this.activeIndex && this.markedIndex < 0)
+				if (i == this.activeIndex)
 				{
-					this.active = $("<div/>").addClass("active");
+					this.active = $("<div/>");
+					if (this.markedIndex < 0)
+						this.active.addClass("active");
 					e.append(this.active);
 				}
 				if (this.markedIndex >= 0)
@@ -1687,16 +1772,27 @@ class Application
 
 		d.arrows.forEach((a, i) =>
 		{
+			var label: JQuery = null;
+			if (!a.label.empty() || this.activeField == a.label)
+			{
+				var label = $("<div/>").addClass("arrowLabel");
+
+				this.outputToken(label, a.label);
+				if (this.activeField == a.label && a.label.empty())
+					this.active.text(Unicode.EnSpace);	// there must be some contents to layout in drawArrow
+
+				this.field.append(label);
+			}
+
 			if (a.from.row == from.row && a.from.col == from.col
 				&& a.to.row == to.row && a.to.col == to.col)
 			{
-				d.drawArrow(ctx, a, this.activeArrowColor);
+				d.drawArrow(ctx, label, a, this.activeField == d ? this.activeArrowColor : null);
 				selected = true;
-				if (this.subIndex < 0)
-					this.subIndex = i;
+				this.subIndex = i;
 			}
 			else
-				d.drawArrow(ctx, a);
+				d.drawArrow(ctx, label, a);
 		});
 		if (d == this.activeField && this.diagramOption.from >= 0 && !selected)
 		{
@@ -1705,9 +1801,10 @@ class Application
 				to:		d.pos(this.activeIndex),
 				style:	this.diagramOption.style,
 				head:	this.diagramOption.head,
-				num:	this.diagramOption.num
+				num:	this.diagramOption.num,
+				label: null, labelPos: null
 			};
-			d.drawArrow(ctx, a, this.intendedArrowColor);
+			d.drawArrow(ctx, null, a, this.intendedArrowColor);
 		}
 		if (!selected)
 			this.subIndex = -1;

@@ -483,6 +483,10 @@ class Formula extends Token /* TokenSeq */
 	{
 		return this.tokens.indexOf(t);
 	}
+	public empty = () =>
+	{
+		return this.tokens.length == 0;
+	}
 
 	public insert(i: number, t: Token): void
 	{
