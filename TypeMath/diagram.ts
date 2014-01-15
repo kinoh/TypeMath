@@ -430,7 +430,9 @@ class Diagram extends Matrix
 	}
 	public clone(parent: TokenSeq): Diagram
 	{
-		return this.cloneRect(0, 0, this.rows - 1, this.cols - 1, false);
+		var d = this.cloneRect(0, 0, this.rows - 1, this.cols - 1, false);
+		d.parent = parent;
+		return d;
 	}
 	public nonEmpty(i0: number, j0: number, rows: number, cols: number): boolean
 	{
