@@ -1833,6 +1833,8 @@ class Application
 			};
 			d.drawArrow(ctx, box, null, a, 0, this.intendedArrowColor);
 		}
+		if (!selected && d == this.activeField)
+			this.subIndex = -1;
 	}
 }
 
