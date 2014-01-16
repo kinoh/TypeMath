@@ -1,7 +1,9 @@
 ﻿/// <reference path="formula.ts" />
+/// <reference path="util.ts" />
 
 enum StrokeStyle
 {
+	None,
 	Plain,
 	Dotted,
 	Dashed,
@@ -35,7 +37,7 @@ interface Decoration
 
 class Diagram extends Matrix
 {
-	arrows: Arrow[];
+	arrows: Arrow[][][];
 	decorations: Decoration[][];
 
 	private static wavy: { [color: string]: HTMLCanvasElement } = {};
@@ -50,7 +52,10 @@ class Diagram extends Matrix
 		this.decorations = [];
 
 		for (var i = 0; i < rows; i++)
+		{
+			this.arrows.push(Util.num(cols).map(() => []));
 			this.decorations.push([]);
+		}
 	}
 
 	public toggleFrame(index: number): void
@@ -88,10 +93,11 @@ class Diagram extends Matrix
 		this.decorations[p.row][p.col].size += (increase ? 1 : -1);
 	}
 
-	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): number
+	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): void
 	{
+		var p = this.pos(from);
 		var a: Arrow = {
-			from: this.pos(from),
+			from: p,
 			to: this.pos(to),
 			num: num,
 			style: style,
@@ -99,46 +105,50 @@ class Diagram extends Matrix
 			label: new Formula(this),
 			labelPos: LabelPosotion.Left
 		};
-		var i = this.arrows.push(a);
-
-		return i - 1;
+		this.arrows[p.row][p.col].push(a);
 	}
 	public removeArrow(from: number, to: number, n: number): Arrow
 	{
 		var i = this.findArrow(from, to, n);
 
-		return i >= 0 ? this.arrows.splice(i, 1)[0] : null;
+		return i ? this.arrows[i.row][i.col].splice(i.i, 1)[0] : null;
 	}
 	public labelArrow(from: number, to: number, n: number, pos: LabelPosotion): Arrow
 	{
 		var i = this.findArrow(from, to, n);
 
-		if (i < 0)
+		if (!i)
 			return null;
 
-		this.arrows[i].labelPos = pos;
+		this.arrows[i.row][i.col][i.i].labelPos = pos;
 
-		return this.arrows[i];
+		return this.arrows[i.row][i.col][i.i];
 	}
-	public findArrow(from: number, to: number, n: number): number
+	public findArrow(from: number, to: number, n: number): { row: number; col: number; i: number }
 	{
-		for (var i = 0; i < this.arrows.length; i++)
+		var p = this.pos(from);
+		var q = this.pos(to);
+		var as = this.arrows[p.row][p.col];
+
+		for (var i = 0; i < as.length; i++)
 		{
-			var a = this.arrows[i];
-			if (a.from.row * this.cols + a.from.col == from
-				&& a.to.row * this.cols + a.to.col == to
-				&& n-- == 0)
-				return i;
-		}
+			if (as[i].to.row == q.row && as[i].to.col == q.col && n-- == 0)
+				return { row: p.row, col: p.col, i: i };
+		};
 
-		return -1;
+		return null;
 	}
-
-	public cloneArea(from: number, to: number, erase: boolean): Diagram
+	private allArrows(): Arrow[]
 	{
-		return <Diagram> super.cloneArea(from, to, erase);
+		return Util.concat(Util.concat(this.arrows));
 	}
-	public cloneRect(i1: number, j1: number, i2: number, j2: number, erase: boolean): Diagram
+
+	public remove(from: number, to: number, extensive?: boolean): Token[]
+	{
+		var r = this.getRectIndex(from, to);
+		return [this.cloneRect(r.i1, r.j1, r.i2, r.j2, true, extensive)];
+	}
+	public cloneRect(i1: number, j1: number, i2: number, j2: number, erase: boolean, extensive?: boolean): Diagram
 	{
 		var d = new Diagram(null, i2 - i1 + 1, j2 - j1 + 1);
 
@@ -158,29 +168,32 @@ class Diagram extends Matrix
 			}
 
 		for (var i = 0; i < this.arrows.length; i++)
+		for (var j = 0; j < this.arrows[i].length; j++)
+		for (var k = 0; k < this.arrows[i][j].length; k++)
 		{
-			var a = this.arrows[i];
+			var a = this.arrows[i][j][k];
 			var start = a.from.row >= i1 && a.from.row <= i2 && a.from.col >= j1 && a.from.col <= j2;
 			var end = a.to.row >= i1 && a.to.row <= i2 && a.to.col >= j1 && a.to.col <= j2;
 
-			if (!erase && start && end)
+			if (!extensive && start && end || extensive && (start || end))
 			{
 				var b: Arrow = {
-					from: { row: a.from.row - i1, col: a.from.col - i1 },
-					to: { row: a.to.row - i1, col: a.to.col - i1 },
+					from: { row: a.from.row - i1, col: a.from.col - j1 },
+					to: { row: a.to.row - i1, col: a.to.col - j1 },
 					num: a.num, style: a.style, head: a.head, label: a.label.clone(d), labelPos: a.labelPos
 				};
-				d.arrows.push(b);
-			}
-			else if (erase && (start || end))
-			{
-				a.from.row -= i1;
-				a.from.col -= j1;
-				a.to.row -= i1;
-				a.to.col -= j1;
-				d.arrows.push(a);
-				this.arrows.splice(i, 1)[0];
-				i--;
+				if (!extensive || start)
+					d.arrows[b.from.row][b.from.col].push(b);
+				else
+				{
+					b.num *= -1;
+					d.arrows[b.to.row][b.to.col].push(b);
+				}
+				if (erase)
+				{
+					this.arrows[i][j].splice(k, 1);
+					k--;
+				}
 			}
 		}
 
@@ -225,7 +238,7 @@ class Diagram extends Matrix
 
 		ctx.restore();
 	}
-	public drawArrow(ctx: CanvasRenderingContext2D, box: ClientRect, label: JQuery, arrow: Arrow, color?: string): void
+	public drawArrow(ctx: CanvasRenderingContext2D, box: ClientRect, label: JQuery, arrow: Arrow, shift: number, color?: string): void
 	{
 		var len = (x, y) => Math.sqrt(x * x + y * y);
 
@@ -282,7 +295,7 @@ class Diagram extends Matrix
 		ctx.translate(ax - box.left, ay - box.top);
 		var adj = 3;	// for wavy arrow (pattern adjustment)
 		ctx.rotate(Math.atan2(dy, dx));
-		ctx.translate(0, -adj);
+		ctx.translate(0, -adj + shift);
 
 		ctx.save();
 		Diagram.setStyle(ctx, arrow.style, color);
@@ -343,6 +356,9 @@ class Diagram extends Matrix
 	{
 		switch (style)
 		{
+			case StrokeStyle.None:
+				ctx.globalAlpha = 0.2;
+				break;
 			case StrokeStyle.Dashed:
 				Diagram.setLineDash(ctx, [5, 5]);
 				break;
@@ -387,17 +403,30 @@ class Diagram extends Matrix
 
 	public extend(horizontal: boolean): void
 	{
-		if (!horizontal)
+		if (horizontal)
+		{
+			this.arrows.forEach(r => r.push([]));
+		}
+		else
+		{
+			this.arrows.push(Util.num(this.cols).map(() => []));
 			this.decorations.push([]);
+		}
 
 		super.extend(horizontal);
 	}
 	public shrink(horizontal: boolean): void
 	{
 		if (horizontal)
+		{
+			this.arrows.forEach(r => r.splice(this.cols - 1, 1));
 			this.decorations.forEach(r => r.splice(this.cols - 1, 1));
+		}
 		if (!horizontal)
+		{
+			this.arrows.pop();
 			this.decorations.pop();
+		}
 
 		super.shrink(horizontal);
 	}
@@ -416,21 +445,26 @@ class Diagram extends Matrix
 		for (var i = 0; i < r; i++)
 			for (var j = 0; j < c; j++)
 				this.decorations[p.row + i][p.col + j] = d.decorations[i][j];
-		d.arrows.forEach(a =>
-		{
-			var b: Arrow = {
-				from: { row: a.from.row + p.row, col: a.from.col + p.col },
-				to: { row: a.to.row + p.row, col: a.to.col + p.col },
-				num: a.num, style: a.style, head: a.head, label: a.label.clone(this), labelPos: a.labelPos
-			};
-			this.arrows.push(b);
-		});
+		d.arrows.forEach((ar, i) =>
+			ar.forEach((ac, j) =>
+				ac.forEach(a =>
+				{
+					var b: Arrow = {
+						from: { row: a.from.row + p.row, col: a.from.col + p.col },
+						to: { row: a.to.row + p.row, col: a.to.col + p.col },
+						num: Math.abs(a.num), style: a.style, head: a.head, label: a.label.clone(this), labelPos: a.labelPos
+					};
+					if (a.num < 0)
+						this.arrows[b.to.row][b.to.col].push(b);
+					else
+						this.arrows[b.from.row][b.from.col].push(b);
+				})));
 
 		return n;
 	}
 	public clone(parent: TokenSeq): Diagram
 	{
-		var d = this.cloneRect(0, 0, this.rows - 1, this.cols - 1, false);
+		var d = this.cloneRect(0, 0, this.rows - 1, this.cols - 1, false, false);
 		d.parent = parent;
 		return d;
 	}
@@ -441,14 +475,15 @@ class Diagram extends Matrix
 				r.some((d, j) =>
 					i >= i0 && i - i0 < rows && j >= j0 && j - j0 < cols
 				))
-			|| this.arrows.some(a =>
+			|| this.allArrows().some(a =>
 				a.from.row >= i0 && a.from.row - i0 < rows && a.from.col >= j0 && a.from.col - j0 < cols
 				|| a.to.row >= i0 && a.to.row - i0 < rows && a.to.col >= j0 && a.to.col - j0 < cols);
 	}
 	public toString(): string
 	{
 		return "Diagram" + this.rows + "," + this.cols
-			+ "(a:" + this.arrows.length + ",d:" + this.decorations.reduce<number>((s, r) => s + r.filter(d => d ? true : false).length, 0)
+			+ "(a:" + this.arrows.reduce<number>((s, r) => s + r.reduce<number>((t, c) => t + c.length, 0), 0)
+			+ ",d:" + this.decorations.reduce<number>((s, r) => s + r.filter(d => d ? true : false).length, 0)
 			+ ")[" + this.elems.map(f => f.toString()).join(", ") + "]";
 	}
 }

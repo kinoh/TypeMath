@@ -34,6 +34,7 @@
     <Content Include="latex.ts" />
     <Content Include="symbolTable.js" />
     <Content Include="unicode.ts" />
+    <Content Include="util.ts" />
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>

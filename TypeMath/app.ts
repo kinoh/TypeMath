@@ -24,11 +24,12 @@ enum RecordType
 	DiagramDeco,
 }
 interface Record { type: RecordType; index: number; }
-interface RecordTransfer { type: RecordType; index: number; sub?: boolean; deeper: boolean; }
+interface RecordTransfer { type: RecordType; index: number; deeper: boolean; }
 interface RecordEdit { type: RecordType; index: number; insert: boolean; contents: Token[]; }
 interface RecordEditMatrix { type: RecordType; index: number; horizontal: boolean; extend: boolean; }
 interface RecordDiagramEdit { type: RecordType; index: number; insert: boolean; option: DiagramOption; }
 interface RecordDiagramDeco { type: RecordType; index: number; command: string; prev: StrokeStyle; }
+interface RecordDiagramTrans { type: RecordType; index: number; from: number; to: number; n: number; deeper: boolean; }
 
 interface DiagramOption
 {
@@ -308,13 +309,25 @@ class Application
 		{
 			switch (key)
 			{
+				case "n":
+					if (this.diagramOption.style == StrokeStyle.None)
+					{
+						this.diagramOption.style = StrokeStyle.Plain;
+						this.diagramOption.head = ">";
+					}
+					else
+					{
+						this.diagramOption.style = StrokeStyle.None;
+						this.diagramOption.head = "";
+					}
+					break;
 				case "=":
 					this.diagramOption.num = 2;
 				case "-":
 				case "d":
 					this.diagramOption.style =
-					(this.diagramOption.style == StrokeStyle.Plain
-					? StrokeStyle.Dashed : StrokeStyle.Plain);
+						(this.diagramOption.style == StrokeStyle.Plain
+						? StrokeStyle.Dashed : StrokeStyle.Plain);
 					break;
 				case ":":
 					this.diagramOption.num = 2;
@@ -744,22 +757,27 @@ class Application
 
 		while (i >= 0 && this.records[i].type == RecordType.Transfer)
 		{
-			var tr = <RecordTransfer> this.records[i];
+			var rt = <RecordTransfer> this.records[i];
 
-			if (tr.deeper)
+			if (rt.deeper)
 				dest = dest.parent;
 			else
 			{
 				var t: Token;
-				if (tr.sub)
+				if ("from" in this.records[i])
 				{
-					if (dest instanceof Diagram && tr.index in (<Diagram> dest).arrows)
-						t = (<Diagram> dest).arrows[tr.index].label;
+					var rdt = <RecordDiagramTrans> rt;
+					if (dest instanceof Diagram)
+					{
+						var d = <Diagram> dest;
+						var k = d.findArrow(rdt.from, rdt.to, rdt.n);
+						t = d.arrows[k.row][k.col][k.i].label;
+					}
 					else
 						console.error("[Application.undo] inconsistent transfer record (arrow label)");
 				}
 				else
-					t = dest.token(tr.index);
+					t = dest.token(rt.index);
 				if (t instanceof Structure || t instanceof Formula)
 					dest = <TokenSeq> t;
 				else
@@ -1150,10 +1168,12 @@ class Application
 		var d = <Diagram> this.activeField;
 		var a = d.labelArrow(this.diagramOption.from, this.activeIndex, 0, pos);
 
-		var rec: RecordTransfer = {
+		var rec: RecordDiagramTrans = {
 			type: RecordType.Transfer,
-			index: this.subIndex,
-			sub: true,
+			index: this.activeIndex,
+			from: this.diagramOption.from,
+			to: this.diagramOption.to,
+			n: this.subIndex,
 			deeper: true
 		};
 		this.records.push(rec);
@@ -1184,9 +1204,9 @@ class Application
 		if (!extend)
 		{
 			if (horizontal && m.nonEmpty(0, m.cols - 1, m.rows, 1))
-				this.removeToken(m.cols - 1, m.cols * m.rows - 1);
+				this.removeToken(m.cols - 1, m.cols * m.rows - 1, true);
 			else if (!horizontal && m.nonEmpty(m.rows - 1, 0, 1, m.cols))
-				this.removeToken(m.cols * (m.rows - 1), m.cols * m.rows - 1);
+				this.removeToken(m.cols * (m.rows - 1), m.cols * m.rows - 1, true);
 		}
 
 		(extend ? m.extend : m.shrink).bind(m)(horizontal);
@@ -1265,36 +1285,35 @@ class Application
 
 		var f = t.parent;
 		var inFormula = f instanceof Formula;
-		var index: number;
-		var inLabel = false;
+		var rec: RecordTransfer = {
+			type: RecordType.Transfer,
+			index: f.indexOf(t),
+			deeper: false
+		};
 
 		if (f instanceof Diagram && this.diagramOption.from >= 0)
 		{
-			inLabel = true;
-			index = (<Diagram> f).findArrow(this.diagramOption.from, this.diagramOption.to, 0);
+			(<RecordDiagramTrans> rec).from = this.diagramOption.from;
+			(<RecordDiagramTrans> rec).to = this.diagramOption.to;
+			(<RecordDiagramTrans> rec).n = this.subIndex;
 			this.activeIndex = forward ? this.diagramOption.to : this.diagramOption.from;
 			this.diagramOption.from = -1;
 			this.diagramOption.to = -1;
+			this.subIndex = -1;
 		}
 		else
 		{
-			this.activeIndex = index = f.indexOf(t);
+			this.activeIndex = rec.index;
 			if (inFormula && forward)
 				this.activeIndex++;
 		}
 		if (this.markedIndex >= 0)
 		{
-			this.markedIndex = index;
+			this.markedIndex = rec.index;
 			if (inFormula && !forward)
 				this.markedIndex++;
 		}
 
-		var rec: RecordTransfer = {
-			type: RecordType.Transfer,
-			index: index,
-			sub: inLabel,
-			deeper: false
-		};
 		this.records.push(rec);
 
 		this.activeField = f;
@@ -1427,11 +1446,17 @@ class Application
 
 		this.activeIndex = this.activeField.paste(this.activeIndex, t);
 	}
-	private removeToken(from: number, to: number): void
+	private removeToken(from: number, to: number, extensive?: boolean): void
 	{
 		console.log("remove " + from + " ~ " + to);
 
-		var removed = this.activeField.remove(from, to);
+		var removed: Token[];
+
+		if (extensive && this.activeField instanceof Diagram)
+			removed = (<Diagram> this.activeField).remove(from, to, true);
+		else
+			removed = this.activeField.remove(from, to);
+
 		var index = Math.min(from, to);
 
 		var rec: RecordEdit = {
@@ -1769,30 +1794,33 @@ class Application
 		var from = d.pos(this.diagramOption.from);
 		var to = d.pos(this.activeIndex);
 
-		d.arrows.forEach((a, i) =>
-		{
-			var label: JQuery = null;
-			if (!a.label.empty() || this.activeField == a.label)
-			{
-				var label = $("<div/>").addClass("arrowLabel");
+		d.arrows.forEach((ar, i) =>
+			ar.forEach((ac, j) =>
+				ac.forEach((a, k) =>
+				{
+					var label: JQuery = null;
+					if (!a.label.empty() || this.activeField == a.label)
+					{
+						var label = $("<div/>").addClass("arrowLabel");
 
-				this.outputToken(label, a.label);
-				if (this.activeField == a.label && a.label.empty())
-					this.active.text(Unicode.EnSpace);	// there must be some contents to layout in drawArrow
+						this.outputToken(label, a.label);
+						if (this.activeField == a.label && a.label.empty())
+							this.active.text(Unicode.EnSpace);	// there must be some contents to layout in drawArrow
 
-				this.field.append(label);
-			}
+						this.field.append(label);
+					}
 
-			if (a.from.row == from.row && a.from.col == from.col
-				&& a.to.row == to.row && a.to.col == to.col)
-			{
-				d.drawArrow(ctx, box, label, a, this.activeField == d ? this.activeArrowColor : null);
-				selected = true;
-				this.subIndex = i;
-			}
-			else
-				d.drawArrow(ctx, box, label, a);
-		});
+					var shift = 3 * (k - (ac.length - 1) / 2);
+					if (a.from.row == from.row && a.from.col == from.col
+						&& a.to.row == to.row && a.to.col == to.col)
+					{
+						d.drawArrow(ctx, box, label, a, shift, this.activeField == d ? this.activeArrowColor : null);
+						selected = true;
+						this.subIndex = k;
+					}
+					else
+						d.drawArrow(ctx, box, label, a, shift);
+				})));
 		if (d == this.activeField && this.diagramOption.from >= 0 && !selected)
 		{
 			var a: Arrow = {
@@ -1803,10 +1831,8 @@ class Application
 				num:	this.diagramOption.num,
 				label: null, labelPos: null
 			};
-			d.drawArrow(ctx, box, null, a, this.intendedArrowColor);
+			d.drawArrow(ctx, box, null, a, 0, this.intendedArrowColor);
 		}
-		if (!selected)
-			this.subIndex = -1;
 	}
 }
 

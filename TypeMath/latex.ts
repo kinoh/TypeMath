@@ -1,4 +1,5 @@
 ﻿/// <reference path="formula.ts" />
+/// <reference path="util.ts" />
 
 class LaTeX
 {
@@ -130,20 +131,6 @@ class LaTeX
 		var ln = "\n";
 		var str = "";
 
-		var arrows: Arrow[][][] = [];
-
-		for (var i = 0; i < d.rows; i++)
-		{
-			arrows.push([]);
-			for (var j = 0; j < d.cols; j++)
-				arrows[i].push([]);
-		}
-		for (var i = 0; i < d.arrows.length; i++)
-		{
-			var a = d.arrows[i];
-			arrows[a.from.row][a.from.col].push(a);
-		}
-
 		str += ln;
 		for (var i = 0; i < d.rows; i++)
 		{
@@ -154,7 +141,7 @@ class LaTeX
 					var dec = LaTeX.transDecoration(d.decorations[i][j]);
 					if (dec != "")
 						s = "*" + dec + "{" + s + "}";
-					s += arrows[i][j].map(a => LaTeX.transArrow(a)).join(" ");
+					s += d.arrows[i][j].map(a => LaTeX.transArrow(a)).join(" ");
 					return s;
 				}).join(" & ") + " \\\\" + ln;
 		}
@@ -168,10 +155,8 @@ class LaTeX
 
 		var s = "";
 		
-		if (deco.size > 0)
-			s = LaTeX.repeat("+", deco.size);
-		else if (deco.size < 0)
-			s = LaTeX.repeat("-", -deco.size);
+		if (deco.size != 0)
+			s = Util.repeat((deco.size > 0 ? "+" : "-"), Math.abs(deco.size)).join();
 
 		if (deco.circle)
 			s += "[o]";
@@ -207,14 +192,10 @@ class LaTeX
 		var dir = "";
 		var dc = a.to.col - a.from.col;
 		var dr = a.to.row - a.from.row;
-		if (dc > 0)
-			dir = LaTeX.repeat("r", dc);
-		else if (dc < 0)
-			dir = LaTeX.repeat("l", -dc);
-		if (dr > 0)
-			dir += LaTeX.repeat("d", dr);
-		else if (dr < 0)
-			dir += LaTeX.repeat("u", -dr);
+		if (dc != 0)
+			dir = Util.repeat((dc > 0 ? "r" : "l"), Math.abs(dc)).join();
+		if (dr != 0)
+			dir += Util.repeat((dr > 0 ? "d" : "u"), Math.abs(dr)).join();
 		s += "[" + dir + "]";
 
 		if (!a.label.empty())
@@ -340,13 +321,5 @@ class LaTeX
 		}
 
 		return pre + f.tokens.map(t => LaTeX.trans(t, indent)).join(separator) + suf;
-	}
-
-	private static repeat = (x, n) =>
-	{
-		var arr = [];
-		for (var i = 0; i < n; i++)
-			arr.push(x);
-		return arr.join("");
 	}
 }

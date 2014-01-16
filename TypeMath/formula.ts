@@ -246,13 +246,15 @@ class Matrix extends Structure
 
 	public remove(from: number, to: number): Token[]
 	{
-		return [this.cloneArea(from, to, true)];
+		var r = this.getRectIndex(from, to);
+		return [this.cloneRect(r.i1, r.j1, r.i2, r.j2, true)];
 	}
 	public copy(from: number, to: number): Token[]
 	{
-		return [this.cloneArea(from, to, false)];
+		var r = this.getRectIndex(from, to);
+		return [this.cloneRect(r.i1, r.j1, r.i2, r.j2, false)];
 	}
-	public cloneArea(from: number, to: number, erase: boolean): Matrix
+	public getRectIndex(from: number, to: number)
 	{
 		var a = this.pos(from);
 		var b = this.pos(to);
@@ -261,7 +263,7 @@ class Matrix extends Structure
 		var i2 = Math.max(a.row, b.row);
 		var j2 = Math.max(a.col, b.col);
 
-		return this.cloneRect(i1, j1, i2, j2, erase);
+		return {i1: i1, j1: j1, i2: i2, j2: j2};
 	}
 	public cloneRect(i1: number, j1: number, i2: number, j2: number, erase: boolean): Matrix
 	{
