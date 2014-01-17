@@ -141,7 +141,8 @@ class LaTeX
 					var dec = LaTeX.transDecoration(d.decorations[i][j]);
 					if (dec != "")
 						s = "*" + dec + "{" + s + "}";
-					s += d.arrows[i][j].map(a => LaTeX.transArrow(a)).join(" ");
+					s += Util.groupBy(d.arrows[i][j], a => a.to.row * d.cols + a.to.col)
+						.map(as => as.map((a, k) => LaTeX.transArrow(a, k - (as.length - 1) / 2)).join(" ")).join(" ");
 					return s;
 				}).join(" & ") + " \\\\" + ln;
 		}
@@ -171,7 +172,7 @@ class LaTeX
 
 		return s;
 	}
-	private static transArrow(a: Arrow): string
+	private static transArrow(a: Arrow, shift: number): string
 	{
 		var s = "";
 		var style = "";
@@ -184,10 +185,17 @@ class LaTeX
 			case StrokeStyle.Dotted: style = ((doubled = a.num == 2) ? ":" : "."); break;
 			case StrokeStyle.Wavy: style = "~"; break;
 		}
-		s += "\\ar@";
+		style += a.head;
+		if (style != "->")
+			style = "{" + style + "}";
+		else
+			style = "";
 		if (!doubled && a.num != 1)
-			s += a.num.toString();
-		s += "{" + style + a.head + "}";
+			style = a.num.toString() + style;
+		if (shift)
+			style += "<" + shift.toString() + "ex>";
+
+		s += (style != "" ? "\\ar@" + style : "\\ar");
 
 		var dir = "";
 		var dc = a.to.col - a.from.col;

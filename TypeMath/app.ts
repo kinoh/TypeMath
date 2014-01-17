@@ -35,6 +35,7 @@ interface DiagramOption
 {
 	from: number;
 	to: number;
+	arrowIndex: number;
 	num: number;
 	style: StrokeStyle;
 	head: string;
@@ -67,11 +68,11 @@ class Application
 	private diagramOption: DiagramOption = {
 		from: -1,
 		to: -1,
+		arrowIndex: -1,
 		num: 1,
 		style: StrokeStyle.Plain,
 		head: ">"
 	};
-	private subIndex = -1;
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
@@ -123,7 +124,7 @@ class Application
 	private get selectingArrow(): boolean
 	{
 		return this.activeField instanceof Diagram
-			&& this.diagramOption.from >= 0 && this.subIndex >= 0;
+			&& this.diagramOption.arrowIndex >= 0;
 	}
 
 	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, proof: JQuery)
@@ -207,10 +208,10 @@ class Application
 				this.inputType == InputType.String ? "String" : "Symbol"),
 				"diag.from     = " + this.diagramOption.from,
 				"diag.to       = " + this.diagramOption.to,
+				"diag.arrow    = " + this.diagramOption.arrowIndex,
 				"diag.num      = " + this.diagramOption.num,
 				"diag.style    = " + this.diagramOption.style,
 				"diag.head     = " + this.diagramOption.head,
-				"subIndex      = " + this.subIndex,
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
@@ -371,6 +372,8 @@ class Application
 			case ControlKey.Tab:
 				if (this.candIndex >= 0)
 					this.currentInput = this.candSelected;
+				else if (this.selectingArrow)
+					this.diagramOption.arrowIndex++;	// moduloed in drawArrows()
 				break;
 			case ControlKey.Enter:
 				if (this.candIndex >= 0)
@@ -1166,14 +1169,14 @@ class Application
 			return;
 
 		var d = <Diagram> this.activeField;
-		var a = d.labelArrow(this.diagramOption.from, this.activeIndex, 0, pos);
+		var a = d.labelArrow(this.diagramOption.from, this.activeIndex, this.diagramOption.arrowIndex, pos);
 
 		var rec: RecordDiagramTrans = {
 			type: RecordType.Transfer,
 			index: this.activeIndex,
 			from: this.diagramOption.from,
 			to: this.diagramOption.to,
-			n: this.subIndex,
+			n: this.diagramOption.arrowIndex,
 			deeper: true
 		};
 		this.records.push(rec);
@@ -1295,11 +1298,11 @@ class Application
 		{
 			(<RecordDiagramTrans> rec).from = this.diagramOption.from;
 			(<RecordDiagramTrans> rec).to = this.diagramOption.to;
-			(<RecordDiagramTrans> rec).n = this.subIndex;
+			(<RecordDiagramTrans> rec).n = this.diagramOption.arrowIndex;
 			this.activeIndex = forward ? this.diagramOption.to : this.diagramOption.from;
 			this.diagramOption.from = -1;
 			this.diagramOption.to = -1;
-			this.subIndex = -1;
+			this.diagramOption.arrowIndex = -1;
 		}
 		else
 		{
@@ -1796,7 +1799,17 @@ class Application
 
 		d.arrows.forEach((ar, i) =>
 			ar.forEach((ac, j) =>
-				ac.forEach((a, k) =>
+			Util.groupBy(ac, a => a.to.row * d.cols + a.to.col)
+				.forEach(as =>
+			{
+				var active = (i == from.row && j == from.col
+					&& as[0].to.row == to.row && as[0].to.col == to.col);
+				if (active)
+				{
+					if (this.diagramOption.arrowIndex < 0 || this.diagramOption.arrowIndex >= as.length)
+						this.diagramOption.arrowIndex = 0;
+				}
+				as.forEach((a, k) =>
 				{
 					var label: JQuery = null;
 					if (!a.label.empty() || this.activeField == a.label)
@@ -1810,17 +1823,16 @@ class Application
 						this.field.append(label);
 					}
 
-					var shift = 3 * (k - (ac.length - 1) / 2);
-					if (a.from.row == from.row && a.from.col == from.col
-						&& a.to.row == to.row && a.to.col == to.col)
+					var shift = 10 * (k - (as.length - 1) / 2);
+					if (active && k == this.diagramOption.arrowIndex)
 					{
 						d.drawArrow(ctx, box, label, a, shift, this.activeField == d ? this.activeArrowColor : null);
 						selected = true;
-						this.subIndex = k;
 					}
 					else
 						d.drawArrow(ctx, box, label, a, shift);
-				})));
+				});
+			})));
 		if (d == this.activeField && this.diagramOption.from >= 0 && !selected)
 		{
 			var a: Arrow = {
@@ -1833,8 +1845,8 @@ class Application
 			};
 			d.drawArrow(ctx, box, null, a, 0, this.intendedArrowColor);
 		}
-		if (!selected && d == this.activeField)
-			this.subIndex = -1;
+		if (!selected && d == this.activeField)	// otherwise arrowIndex is kept to undo leaving an arrow label
+			this.diagramOption.arrowIndex = -1;
 	}
 }
 

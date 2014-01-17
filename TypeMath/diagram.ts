@@ -93,7 +93,7 @@ class Diagram extends Matrix
 		this.decorations[p.row][p.col].size += (increase ? 1 : -1);
 	}
 
-	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): void
+	public addArrow(from: number, to: number, num: number, style: StrokeStyle, head: string): number
 	{
 		var p = this.pos(from);
 		var a: Arrow = {
@@ -105,7 +105,9 @@ class Diagram extends Matrix
 			label: new Formula(this),
 			labelPos: LabelPosotion.Left
 		};
-		this.arrows[p.row][p.col].push(a);
+		var i = this.arrows[p.row][p.col].push(a);
+
+		return i - 1;
 	}
 	public removeArrow(from: number, to: number, n: number): Arrow
 	{
@@ -253,6 +255,7 @@ class Diagram extends Matrix
 		var dx = bcx - acx;
 		var dy = bcy - acy;
 		var rc = len(dx, dy);
+		var arg = Math.atan2(dy, dx);
 
 		var dec1 = this.decorations[arrow.from.row][arrow.from.col];
 		var dec2 = this.decorations[arrow.to.row][arrow.to.col];
@@ -294,7 +297,7 @@ class Diagram extends Matrix
 
 		ctx.translate(ax - box.left, ay - box.top);
 		var adj = 3;	// for wavy arrow (pattern adjustment)
-		ctx.rotate(Math.atan2(dy, dx));
+		ctx.rotate(arg);
 		ctx.translate(0, -adj + shift);
 
 		ctx.save();
@@ -330,8 +333,8 @@ class Diagram extends Matrix
 		{
 			var lrec = arrow.label.renderedElem[0].getBoundingClientRect();
 			var ldiag = Math.sqrt(lrec.width * lrec.width + lrec.height * lrec.height) / 2;
-			var x = (acx + bcx) / 2 - lrec.width / 2;
-			var y = (acy + bcy) / 2 - lrec.height / 2;
+			var x = (acx + bcx) / 2 - lrec.width / 2 - box.left;
+			var y = (acy + bcy) / 2 - lrec.height / 2 - box.top;
 
 			if (arrow.labelPos != LabelPosotion.Middle)
 			{
@@ -343,12 +346,12 @@ class Diagram extends Matrix
 			else
 			{
 				ctx.fillStyle = "#fff";
-				ctx.fillRect(x - box.left, y - box.top, lrec.width + 2, lrec.height);
+				ctx.fillRect(x, y, lrec.width + 2, lrec.height);
 			}
 
 			label.css({
-				"left": x - box.left,
-				"top": y - box.top
+				"left": x,
+				"top": y
 			});
 		}
 	}
