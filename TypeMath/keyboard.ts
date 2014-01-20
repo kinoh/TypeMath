@@ -19,28 +19,54 @@ class Keyboard
 		191: '?', 226: '_',
 		160: '~',  64: '`',  59: '+',  58: '*'
 	};
+	private static keyMapWebkit = {
+		"U+00BD": ["-", "="],
+		"U+00DE": ["^", "~"],
+		"U+00DC": ["¥", "|"],
+		"U+00C0": ["@", "`"],
+		"U+00DB": ["[", "{"],
+		"U+00BB": [";", "+"],
+		"U+00BA": [":", "*"],
+		"U+00DD": ["]", "}"],
+		"U+00BC": [",", "<"],
+		"U+00BE": [".", ">"],
+		"U+00BF": ["/", "?"],
+		"U+00E2": ["\\", "_"],
+	};
 
-    public static knowKey(e: KeyboardEvent): string
-    {
-	    var code = e.keyCode;
-	    var key = "";
+	public static knowKey(e: KeyboardEvent): string
+	{
+		var code = e.keyCode;
+		var key = "";
 
-	    if (!e.shiftKey)
-	    {
-            if (code in Keyboard.keyMapNormal)
-                key = Keyboard.keyMapNormal[code];
-            else if (code >= 48 && code <= 57 || code >= 65 && code <= 90)
-                key = String.fromCharCode(code).toLowerCase();
-	    }
-	    else
-	    {
-            if (code in this.keyMapShifted)
-                key = this.keyMapShifted[code];
-            else if (code >= 48 && code <= 57 || code >= 65 && code <= 90)
-                key = String.fromCharCode(code);
-        }
+		if (e.char && e.keyCode > 32)	// IE
+			key = e.key;
+		else if ((<any> e).keyIdentifier !== undefined)	// Safari, Opera, Chrome
+		{
+			var id = <string> (<any> e).keyIdentifier;
+			key = (id in Keyboard.keyMapWebkit
+				? Keyboard.keyMapWebkit[id][e.shiftKey ? 1 : 0]
+				: this.getAsciiKey(parseInt(id.substr(2), 16)));
+			if (!e.shiftKey)
+				key = key.toLowerCase();
+		}
+		else if (!e.shiftKey)
+			key = (code in this.keyMapNormal
+				? this.keyMapNormal[code]
+				: this.getAsciiKey(code).toLowerCase());
+		else
+			key = (code in this.keyMapShifted
+				? this.keyMapShifted[code]
+				: this.getAsciiKey(code));
 
-        return key;
+		return key;
+	}
+	private static getAsciiKey(code: number): string
+	{
+		if (code >= 48 && code <= 57 || code >= 65 && code <= 90)
+			return String.fromCharCode(code);
+		else
+			return "";
 	}
 	public static knowControlKey(e: KeyboardEvent): ControlKey
 	{
