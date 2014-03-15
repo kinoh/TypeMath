@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+    <title>TypeMath の使い方</title>
+	<link rel="stylesheet" href="usage.css" />
+</head>
+<body>
+<h1><a href="index.html">TypeMath</a></h1>
+<div>
+LaTeX による数式入力を支援します。コマンドに \ 記号は不要です。
+</div>
+
+<h2>入力が無い時</h2>
+<div>
+<table>
+<tr><th>キー</th><th>機能</th></tr>
+<tr>
+<td class="key">↑, ↓, ←, →</td>
+<td>移動</td>
+</tr>
+<tr>
+<td class="key">space</td>
+<td>次に移動</td>
+</tr>
+<tr>
+<td class="key">shift+space</td>
+<td>前に移動</td>
+</tr>
+<tr>
+<td class="key">shift</td>
+<td>式を選択し始める</td>
+</tr>
+<tr>
+<td class="key">ctrl+X</td>
+<td>切り取り</td>
+</tr>
+<tr>
+<td class="key">ctrl+C</td>
+<td>写し取り</td>
+</tr>
+<tr>
+<td class="key">ctrl+V</td>
+<td>貼り付け</td>
+</tr>
+</table>
+</div>
+
+<h2>入力がある時</h2>
+<div>
+確定していない入力は赤い枠に表示されます。
+<table>
+<tr><th>キー</th><th>機能</th></tr>
+<tr>
+<td class="key">↑, ↓</td>
+<td>候補の選択</td>
+</tr>
+<tr>
+<td class="key">space</td>
+<td>
+入力に一致するコマンドがあれば変換する<br />
+コマンドが見付からなければ一文字ずつ変数として扱う<br />
+コマンドが一文字の場合は変換されない（\S など）
+</td>
+</tr>
+<tr>
+<td class="key">enter</td>
+<td>
+選択された候補に変換する<br />
+= の後ではちょっと計算する
+</td>
+</tr>
+<tr>
+<td class="key">tab</td>
+<td>選択された候補で入力を補完する（変換はしない）</td>
+</tr>
+</table>
+</div>
+
+<h2>行列</h2>
+<div>
+matrix や pmatrix コマンドで行列を入力します。
+<table>
+<tr><th>キー</th><th>機能</th></tr>
+<tr>
+<td class="key">↑, ↓, ←, →</td>
+<td>セルの移動</td>
+</tr>
+<tr>
+<td class="key">ctrl+↑, ctrl+↓</td>
+<td>行を増減する</td>
+</tr>
+<tr>
+<td class="key">ctrl+←, ctrl+→</td>
+<td>列を増減する</td>
+</tr>
+</table>
+</div>
+
+<h2>可換図式</h2>
+<div>
+XY-pic の xymatrix コマンドの一部機能に対応しています。
+<table>
+<tr><th>キー</th><th>機能</th></tr>
+<tr>
+<td class="key">enter</td>
+<td>セル内と図式とを行き来する</td>
+</tr>
+<th colspan="2">図式上</th>
+<tr>
+<td class="key">↑, ↓, ←, →</td>
+<td>セルの移動</td>
+</tr>
+<tr>
+<td class="key">f</td>
+<td>長方形の枠</td>
+</tr>
+<tr>
+<td class="key">o</td>
+<td>丸枠</td>
+</tr>
+<tr>
+<td class="key">d</td>
+<td>枠を破線にする</td>
+</tr>
+<tr>
+<td class="key">.</td>
+<td>枠を点線にする</td>
+</tr>
+<tr>
+<td class="key">~</td>
+<td>枠を波線にする</td>
+</tr>
+<tr>
+<td class="key">+, -</td>
+<td>枠の大きさを変える</td>
+</tr>
+<tr>
+<td class="key">space</td>
+<td>矢印の始点を設定する</td>
+</tr>
+<tr>
+<th colspan="2">始点設定時</th>
+</tr>
+<tr>
+<td class="key">↑, ↓, ←, →</td>
+<td>
+終点を選ぶ<br />
+既存の矢印と同じ始点終点を選ぶと矢印が選択される
+</td>
+</tr>
+<tr>
+<td class="key">enter</td>
+<td>矢印を配置する</td>
+</tr>
+<tr>
+<td class="key">d</td>
+<td>矢柄を破線にする</td>
+</tr>
+<tr>
+<td class="key">.</td>
+<td>矢柄を点線にする</td>
+</tr>
+<tr>
+<td class="key">~</td>
+<td>矢柄を波線にする</td>
+</tr>
+<tr>
+<td class="key">=</td>
+<td>矢柄を二重線にする</td>
+</tr>
+<tr>
+<td class="key">:</td>
+<td>矢柄を二重点線にする</td>
+</tr>
+<tr>
+<td class="key">1, 2, 3, ..</td>
+<td>矢柄の本数を変える</td>
+</tr>
+<tr>
+<th colspan="2">矢印選択時</th>
+</tr>
+<tr>
+<td class="key">^, |, _</td>
+<td>
+ラベルを配置・編集する<br />
+既に配置されている場合も位置が変わる<br />
+| は中央、^ は矢印に沿って見た時の左、_ は右
+</td>
+</tr>
+<tr>
+<td class="key">tab</td>
+<td>複数ある場合に矢印を選ぶ</td>
+</tr>
+<tr>
+<td class="key">backspace</td>
+<td>矢印を削除する</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

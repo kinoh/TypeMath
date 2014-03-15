@@ -19,7 +19,7 @@
   <ItemGroup>
     <Content Include="app.css" />
     <Content Include="calc.ts" />
-    <Content Include="default.htm" />
+    <Content Include="index.html" />
     <Content Include="diagram.ts" />
     <Content Include="formula.css" />
     <Content Include="formula.ts" />
@@ -34,6 +34,8 @@
     <Content Include="latex.ts" />
     <Content Include="symbolTable.js" />
     <Content Include="unicode.ts" />
+    <Content Include="usage.css" />
+    <Content Include="usage.html" />
     <Content Include="util.ts" />
     <Content Include="web.config" />
   </ItemGroup>

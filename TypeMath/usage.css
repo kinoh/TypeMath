@@ -1,0 +1,22 @@
+﻿body
+{
+	font-family: 'Segoe UI', sans-serif;
+}
+
+table
+{
+	margin: 1em;
+	border-collapse: collapse;
+}
+td, th
+{
+	border: solid 1px #000;
+}
+td
+{
+	padding: 0.1em 0.5em;
+}
+	td.key
+	{
+		text-align: center;
+	}
