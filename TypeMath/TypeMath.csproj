@@ -27,9 +27,6 @@
     <Content Include="glyphEdit.html" />
     <Content Include="glyphEdit.js" />
     <Content Include="keyboard.ts" />
-    <Content Include="jquery-1.10.0.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="jquery.d.ts" />
     <Content Include="latex.ts" />
     <Content Include="symbolTable.js" />
