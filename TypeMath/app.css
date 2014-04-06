@@ -88,3 +88,10 @@
 {
 	border: solid 1px #9f9;
 }
+
+#select
+{
+	border: solid 1px #0c0;
+	visibility: hidden;
+	position: absolute;
+}

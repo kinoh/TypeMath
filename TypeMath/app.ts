@@ -7,6 +7,54 @@
 /// <reference path="glyph.ts" />
 /// <reference path="calc.ts" />
 
+class Rect
+{
+	public left: number;
+	public top: number;
+	public right: number;
+	public bottom: number;
+	public width: number;
+	public height: number;
+
+	constructor(left: number, top: number, width: number, height: number)
+	{
+		this.left = left;
+		this.top = top;
+		this.right = left + width;
+		this.bottom = top + height;
+		this.width = width;
+		this.height = height;
+	}
+	public static fromJQuery(a: JQuery)
+	{
+		var pos = a.offset();
+		return new Rect(pos.left, pos.top, a.width(), a.height());
+	}
+	public center(): Point
+	{
+		return { x: (this.left + this.right) / 2, y: (this.top + this.bottom) / 2 };
+	}
+	public size(): { width: number; height: number }
+	{
+		return { width: this.width, height: this.height };
+	}
+	public contains(containee: Rect): boolean;
+	public contains(containee: Point): boolean;
+	public contains(a: any): boolean
+	{
+		if (a instanceof Rect)
+		{
+			var r = <Rect> a;
+			return r.left >= this.left && r.right <= this.right && r.top >= this.top && r.bottom <= this.bottom;
+		}
+		else
+		{
+			var p = <Point> a;
+			return p.x >= this.left && p.x <= this.right && p.y >= this.top && p.y <= this.bottom;
+		}
+	}
+}
+
 enum InputType
 {
 	Empty,
@@ -48,6 +96,7 @@ class Application
 	private latex: JQuery;
 	private candy: JQuery;
 	private ghost: JQuery;
+	private selectedArea: JQuery;
 	private glyph: GlyphFactory;
 	private _log: JQuery;
 	private _status: JQuery;
@@ -78,6 +127,8 @@ class Application
 	private outputCurrentStyle: FontStyle[];
 	private afterLayout: Token[];
 	private records: Record[] = [];
+	private dragFrom: { x: number; y: number } = null;
+	private dragRect: Rect = null;
 
 	public candMax = 16;
 	public activeArrowColor = "#f39";
@@ -127,12 +178,13 @@ class Application
 			&& this.diagramOption.arrowIndex >= 0;
 	}
 
-	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, proof: JQuery)
+	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.latex = latex;
 		this.candy = candy;
 		this.ghost = ghost;
+		this.selectedArea = select;
 
 		this.enrichKeywords();
 
@@ -142,6 +194,9 @@ class Application
 			this.proofMode = proof.prop("checked");
 		});
 		proof.change();
+		ghost.mousedown((e) => { this.dragFrom = { x: e.pageX, y: e.pageY }; this.jumpTo(this.dragFrom); });
+		ghost.mousemove((e) => { this.dragSelect(e); });
+		ghost.mouseup((e) => { this.dragFrom = this.dragRect = null; this.render(); });
 
 		$(document.body).append(this._status = $("<pre/>").css("font-size", "9pt"));
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
@@ -190,6 +245,20 @@ class Application
 			this.active.text(a);
 
 		this.showCandidate();
+
+		if (this.dragFrom && this.dragRect)
+		{
+			var ofs = this.field.offset();
+			this.selectedArea.css({
+				visibility: "visible",
+				left: (this.dragRect.left - ofs.left) + "px",
+				top: (this.dragRect.top - ofs.top) + "px",
+				width: this.dragRect.width + "px",
+				height: this.dragRect.height + "px"
+			});
+		}
+		else
+			this.selectedArea.css("visibility", "hidden");
 
 		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
 
@@ -890,6 +959,89 @@ class Application
 		this.records.splice(i, this.records.length - i + 1);
 	}
 
+	private dragSelect(e: JQueryEventObject): void
+	{
+		if (!this.dragFrom)
+			return;
+		var select = new Rect(
+			Math.min(e.pageX, this.dragFrom.x), Math.min(e.pageY, this.dragFrom.y),
+			Math.abs(e.pageX - this.dragFrom.x), Math.abs(e.pageY - this.dragFrom.y));
+
+		this.selectByRect(select);
+	}
+	private selectByRect(select: Rect, parent: TokenSeq = this.formula): void
+	{
+		var n = parent.count();
+		var selected = [];
+
+		for (var i = 0; i < n; i++)
+		{
+			var t = parent.token(i);
+			var rect = Rect.fromJQuery(t.renderedElem);
+
+			if ((t instanceof Structure || t instanceof Formula) && rect.contains(select))
+				return this.selectByRect(select, <TokenSeq> t);
+
+			if (select.contains(rect.center()))
+				selected.push(i);
+		}
+
+		if (parent != this.activeField)
+			this.jumpFormula(parent);
+
+		this.dragRect = select;
+
+		if (selected.length == 0)
+		{
+			this.markedIndex = this.activeIndex;
+			this.render();
+			return;
+		}
+
+		if (parent instanceof Matrix)
+		{
+			this.markedIndex = selected[0];
+			this.activeIndex = selected[selected.length - 1];
+		}
+		else
+		{
+			this.markedIndex = selected[0];
+			this.activeIndex = selected[selected.length - 1] + 1;
+		}
+
+		this.render();
+	}
+	private jumpTo(p: Point, parent: TokenSeq = this.formula): void
+	{
+		var n = parent.count();
+		var distMin = Number.MAX_VALUE;
+		var indexNear = -1;
+
+		for (var i = 0; i < n; i++)
+		{
+			var t = parent.token(i);
+			var rect = Rect.fromJQuery(t.renderedElem);
+
+			if ((t instanceof Structure || t instanceof Formula) && rect.contains(p))
+				return this.jumpTo(p, <TokenSeq> t);
+
+			var g = rect.center();
+			var d = Util.normSquared(p.x - g.x, p.y - g.y);
+			if (d < distMin)
+			{
+				distMin = d;
+				indexNear = (p.x < g.x ? i : i + 1);
+			}
+		}
+
+		if (parent != this.activeField)
+			this.jumpFormula(parent);
+
+		this.activeIndex = indexNear;
+
+		this.render();
+	}
+
 	//////////////////////////////////////
 	/*  input interpretation			*/
 	//////////////////////////////////////
@@ -1373,6 +1525,59 @@ class Application
 
 		return false;
 	}
+	private jumpFormula(target: TokenSeq): boolean
+	{
+		var leave = 0, enter = -1;
+		var toSeq = [];
+		var toIndex = [];
+
+		for (var to = target; to; to = to.parent)
+		{
+			toSeq.push(to);
+			if (to.parent)
+				toIndex.push(to.parent.indexOf(to));
+		}
+	outer:
+		for (var from = this.activeField; from; from = from.parent)
+		{
+			for (var j = 0; j < toSeq.length; j++)
+				if (from == toSeq[j])
+				{
+					enter = j;
+					break outer;
+				}
+			leave++;
+		}
+
+		if (enter < 0)
+			console.error("[Application.jumpFormula] ill-structured formula");
+
+		var t = this.activeField;
+		for (var i = 0; i < leave; i++)
+		{
+			var f = t.parent;
+			var rec: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: f.indexOf(t),
+				deeper: false
+			};
+			this.records.push(rec);
+			t = t.parent;
+		}
+		for (var j = enter - 1; j >= 0; j--)
+		{
+			var rec: RecordTransfer = {
+				type: RecordType.Transfer,
+				index: toIndex[j],
+				deeper: true
+			};
+			this.records.push(rec);
+		}
+
+		this.activeField = target;
+
+		return true;
+	}
 
 	//////////////////////////////////////
 	/*  activeFormula editing			*/
@@ -1854,5 +2059,5 @@ var app;
 
 window.onload = () =>
 {
-	app = new Application($("#field"), $("#latex"), $("#candy"), $("#ghost"), $("#proofMode"));
+	app = new Application($("#field"), $("#latex"), $("#candy"), $("#ghost"), $("#select"), $("#proofMode"));
 };

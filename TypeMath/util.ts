@@ -41,4 +41,8 @@
 
 		return r;
 	}
+	public static normSquared(x: number, y: number): number
+	{
+		return x * x + y * y;
+	}
 }
