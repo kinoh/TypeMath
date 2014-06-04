@@ -59,6 +59,25 @@ class Num extends Token
 	}
 }
 
+class Macro extends Token
+{
+	name: string;
+
+	public constructor(name: string)
+	{
+		super();
+		this.name = name;
+	}
+	public clone(parent: TokenSeq): Macro
+	{
+		return new Macro(this.name);
+	}
+	public toString(): string
+	{
+		return "\\" + this.name;
+	}
+}
+
 interface TokenSeq
 {
 	parent: TokenSeq;

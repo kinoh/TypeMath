@@ -122,6 +122,10 @@ class Application
 		style: StrokeStyle.Plain,
 		head: ">"
 	};
+	private macroOption: { field: Formula; epoch: number } = {
+		field: null,
+		epoch: 0
+	};
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
@@ -167,6 +171,7 @@ class Application
 		"sqrt": "√",
 		"xymatrix": "",
 	};
+	private macroTable: { [key: string]: Token } = {};
 
 	private bracketCor = {
 		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
@@ -176,6 +181,10 @@ class Application
 	{
 		return this.activeField instanceof Diagram
 			&& this.diagramOption.arrowIndex >= 0;
+	}
+	private get inMacroMode(): boolean
+	{
+		return this.macroOption.field !== null;
 	}
 
 	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, proof: JQuery)
@@ -260,7 +269,15 @@ class Application
 		else
 			this.selectedArea.css("visibility", "hidden");
 
-		this.latex.text(LaTeX.trans(this.formula, "", this.proofMode));
+		var latex = [];
+		for (var macro in this.macroTable)
+		{
+			latex.push(["\\newcommand{\\", macro, "}{", LaTeX.trans(this.macroTable[macro]), "}"].join(""));
+		}
+		if (latex.length > 0)
+			latex.push("\n");
+		latex.push(LaTeX.trans(this.formula, "", this.proofMode));
+		this.latex.text(latex.join("\n"));
 
 		if (this._enableStatus)
 			this._status.text([
@@ -281,6 +298,9 @@ class Application
 				"diag.num      = " + this.diagramOption.num,
 				"diag.style    = " + this.diagramOption.style,
 				"diag.head     = " + this.diagramOption.head,
+				"macro.field   = " + (this.macroOption.field ? this.macroOption.field.toString() : "null"),
+				"macro.epoch   = " + this.macroOption.epoch,
+				"macroTable    = " + Object.keys(this.macroTable).join(", "),
 				"clipboard     = " + this.clipboard.toString(),
 				"records       = " + this.records.map(this.writeRecord).join("\n")
 			].join("\n"));
@@ -576,9 +596,57 @@ class Application
 			case "z":
 				this.undo();
 				break;
+			case "m":
+				if (!this.inMacroMode)
+					this.enterMacroMode();
+				else
+					this.exitMacroMode();
+				break;
 		}
 
 		this.render();
+	}
+
+	private enterMacroMode(): void
+	{
+		var epoch = this.records.length;
+
+		this.extrudeToken(this.markedIndex, this.activeIndex);
+		this.markedIndex = -1;
+		this.enterFormula(true);
+
+		this.macroOption.field = <Formula> this.activeField;
+		this.macroOption.epoch = epoch;
+	}
+	private exitMacroMode(): void
+	{
+		var name: string;
+		while ((name = window.prompt("Macro Name:")) in this.keywords)
+		{
+			window.alert("Duplicate Name!");
+		}
+		this.registerMacro(name, this.macroOption.field.tokens.map(t => t.clone(null)));
+
+		while (this.records.length > this.macroOption.epoch)
+			this.undo();
+
+		this.macroOption.field = null;
+		this.macroOption.epoch = 0;
+	}
+	private registerMacro(name: string, content: Token[]): void
+	{
+		if (name in this.keywords)
+			console.error("[Application.registerMacro] duplicate macro name");
+
+		if (content.length == 1)
+			this.macroTable[name] = content[0];
+		else
+		{
+			var f = new Formula(null);
+			f.tokens = content;
+			this.macroTable[name] = f;
+		}
+		this.keywords[name] = "";
 	}
 
 	private movePrev(): void
@@ -1165,7 +1233,11 @@ class Application
 				this.insertToken(new Diagram(this.activeField, 1, 1));
 				break;
 			default:
-				if (input in this.keywords &&
+				if (input in this.macroTable)
+				{
+					this.insertToken(new Macro(input));
+				}
+				else if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
 				{
 					struct = new BigOpr(this.activeField, this.keywords[input]);
@@ -1677,6 +1749,33 @@ class Application
 
 		this.activeIndex = index;
 	}
+	private extrudeToken(from: number, to: number): void
+	{
+		console.log("extrude " + from + " ~ " + to);
+
+		var target = this.activeField.remove(from, to);
+		var index = Math.min(from, to);
+		var extruded = [new Formula(null)];
+		extruded[0].tokens = target;
+
+		var rec1: RecordEdit = {
+			type: RecordType.Edit,
+			index: index,
+			insert: false,
+			contents: target
+		};
+		var rec2: RecordEdit = {
+			type: RecordType.Edit,
+			index: index,
+			insert: true,
+			contents: extruded
+		};
+		this.records.push(rec1);
+		this.records.push(rec2);
+
+		this.activeField.paste(index, extruded);
+		this.activeIndex = index;
+	}
 
 	//////////////////////////////////////
 	/*  formula output					*/
@@ -1713,6 +1812,11 @@ class Application
 				.addClass("number")
 				.text((<Num>t).value.toString());
 			q.append(e);
+		}
+		else if (t instanceof Macro)
+		{
+			var m = <Macro> t;
+			e = this.outputToken(q, this.macroTable[m.name]);
 		}
 		else if (t instanceof Structure)
 		{
@@ -1927,6 +2031,8 @@ class Application
 	{
 		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
 
+		if (f == this.macroOption.field)
+			e.addClass("macroField");
 		if (f == this.activeField)
 		{
 			var r: JQuery;

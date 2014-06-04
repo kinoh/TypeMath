@@ -64,7 +64,11 @@ class LaTeX
 		}
 		else if (t instanceof Num)
 		{
-			return (<Num>t).value.toString();
+			return (<Num> t).value.toString();
+		}
+		else if (t instanceof Macro)
+		{
+			return "\\" + (<Macro> t).name;
 		}
 		else if (t instanceof Diagram)
 		{
