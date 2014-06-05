@@ -43,7 +43,7 @@ class LaTeX
 		return "\\" + n + "{ " + args.map(t => LaTeX.trans(t)).join(" }{ ") + " }";
     }
 
-	private static macroBreaked(n: string, indent: string, ...args: Token[]): string
+	private static macroBroken(n: string, indent: string, ...args: Token[]): string
 	{
 		var inner = indent + "  ";
 		return "\\" + n + " {\n"
@@ -256,7 +256,7 @@ class LaTeX
 				return LaTeX.macro("frac", s.token(0), s.token(1));
 			case StructType.Infer:
 				var opt = LaTeX.trans(s.token(2));
-				return LaTeX.macroBreaked("infer" + (opt != "" ? "[" + opt + "]" : ""),
+				return LaTeX.macroBroken("infer" + (opt != "" ? "[" + opt + "]" : ""),
 					indent, s.token(0), s.token(1));
 			case StructType.Power:
 				str = LaTeX.trans(s.token(0));
