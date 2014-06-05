@@ -89,6 +89,12 @@ interface DiagramOption
 	head: string;
 }
 
+interface OutputInfo
+{
+	arguments: Macro;
+	actGenerated: boolean;
+}
+
 class Application
 {
 	private field: JQuery;
@@ -171,7 +177,7 @@ class Application
 		"sqrt": "√",
 		"xymatrix": "",
 	};
-	private macroTable: { [key: string]: Token } = {};
+	private macroTable: { [key: string]: { argc: number; content: Token } } = {};
 
 	private bracketCor = {
 		"(": ")", "{": "}", "[": "]", "|": "|", "‖": "‖", "⌊": "⌋", "⌈": "⌉", "〈": "〉", "√": ""
@@ -240,7 +246,7 @@ class Application
 
 		this.field.empty();
 		this.outputCurrentStyle = [FontStyle.Normal];
-		this.outputToken(this.field, this.formula);
+		this.outputToken(this.field, this.formula, { arguments: null, actGenerated: false });
 
 		if (this.active)
 		{
@@ -272,7 +278,12 @@ class Application
 		var latex = [];
 		for (var macro in this.macroTable)
 		{
-			latex.push(["\\newcommand{\\", macro, "}{", LaTeX.trans(this.macroTable[macro]), "}"].join(""));
+			var m = this.macroTable[macro];
+			var s = ["\\newcommand{\\", macro, "}"];
+			if (m.argc > 0)
+				s.push("[", m.argc.toString(), "]");
+			s.push("{", LaTeX.trans(m.content), "}");
+			latex.push(s.join(""));
 		}
 		if (latex.length > 0)
 			latex.push("\n");
@@ -349,8 +360,13 @@ class Application
 		}
 		else
 		{
-			if (t == this.inputType)
+			if (t == this.inputType ||
+				(this.inMacroMode
+					&& this.currentInput.charAt(0) == '#'
+					&& t == InputType.Number))
+			{
 				this.currentInput += key;
+			}
 			else
 			{
 				this.interpretInput();
@@ -621,10 +637,21 @@ class Application
 	private exitMacroMode(): void
 	{
 		var name: string;
-		while ((name = window.prompt("Macro Name:")) in this.keywords)
+
+		for (var accepted = false; !accepted; )
 		{
-			window.alert("Duplicate Name!");
+			name = window.prompt("Macro Name:");
+
+			if (name === null)
+				return;
+			else if (name in this.keywords)
+				window.alert("Duplicate Name!");
+			else if (name.length == 0)
+				window.alert("No Input!");
+			else
+				accepted = true;
 		}
+
 		this.registerMacro(name, this.macroOption.field.tokens.map(t => t.clone(null)));
 
 		while (this.records.length > this.macroOption.epoch)
@@ -638,15 +665,47 @@ class Application
 		if (name in this.keywords)
 			console.error("[Application.registerMacro] duplicate macro name");
 
+		var n = this.countArgs({
+			count: () => { return content.length; },
+			token: (i) => { return content[i]; }
+		});
+
+		var t: Token;
 		if (content.length == 1)
-			this.macroTable[name] = content[0];
+			t = content[0];
 		else
 		{
 			var f = new Formula(null);
 			f.tokens = content;
-			this.macroTable[name] = f;
+			t = f;
 		}
+		this.macroTable[name] = { argc: n, content: t };
 		this.keywords[name] = "";
+	}
+	private countArgs(seq: { count(): number; token(i: number): Token }): number
+	{
+		var n = seq.count();
+		var count = 0;
+
+		for (var i = 0; i < n; i++)
+		{
+			var t = seq.token(i);
+			var c = 0;
+			if (t instanceof Structure || t instanceof Formula)
+			{
+				var s = <TokenSeq> t;
+				c = this.countArgs(s);
+			}
+			else if (t instanceof Symbol)
+			{
+				var m = (<Symbol> t).str.match(/^#(\d+)$/);
+				if (m)
+					c = parseInt(m[1]);
+			}
+			count = Math.max(count, c);
+		}
+
+		return count;
 	}
 
 	private movePrev(): void
@@ -831,7 +890,7 @@ class Application
 		var key = this.currentInput;
 
 		var keys = Object.keys(this.keywords);
-		var cand = keys.filter(w => w.indexOf(key) == 0)
+		var cand = keys.filter(w => w.indexOf(key) == 0).sort((a, b) => a.length - b.length)
 			.concat(keys.filter(w => w.indexOf(key) > 0));
 
 		if (key == "|")	// for poor key map (such as Firefox's one)
@@ -1235,7 +1294,7 @@ class Application
 			default:
 				if (input in this.macroTable)
 				{
-					this.insertToken(new Macro(input));
+					this.insertToken(new Macro(this.activeField, input, this.macroTable[input].argc));
 				}
 				else if (input in this.keywords &&
 					this.operators.indexOf(this.keywords[input]) >= 0)
@@ -1260,6 +1319,14 @@ class Application
 	{
 		var t: Symbol;
 		var input: string[];
+
+		if (this.inMacroMode
+			&& this.currentInput.match(/^#\d+$/))
+		{
+			this.insertToken(new Symbol(this.currentInput, false));
+			this.postInput = "";
+			return;
+		}
 
 		if (this.currentInput == "Vert")
 			input = ["‖"];
@@ -1780,31 +1847,13 @@ class Application
 	//////////////////////////////////////
 	/*  formula output					*/
 	//////////////////////////////////////
-	private outputToken(q: JQuery, t: Token): JQuery
+	private outputToken(q: JQuery, t: Token, info: OutputInfo): JQuery
 	{
 		var e: JQuery;
 
 		if (t instanceof Symbol)
 		{
-			var v = <Symbol> t;
-			var str = v.str;
-			var style = this.outputCurrentStyle[0];
-
-			if (style != FontStyle.Normal)
-				str = this.transStyle(str, style);
-			if (str == "&")
-				str = Unicode.EmSpace;
-
-			e = $("<div/>").text(str);
-
-			if (style != FontStyle.Normal)
-				e.addClass("styledLetter");
-			if (!this.proofMode && v.variable && (style == FontStyle.Normal || style == FontStyle.Bold))
-				e.addClass("variable");
-			else
-				e.addClass("symbol");
-
-			q.append(e);
+			e = this.outputSymbol(q, <Symbol> t, info);
 		}
 		else if (t instanceof Num)
 		{
@@ -1816,30 +1865,68 @@ class Application
 		else if (t instanceof Macro)
 		{
 			var m = <Macro> t;
-			e = this.outputToken(q, this.macroTable[m.name]);
+			e = this.outputToken(q, this.macroTable[m.name].content, {
+				arguments: m, actGenerated: info.actGenerated
+			});
 		}
 		else if (t instanceof Structure)
 		{
 			var s = <Structure> t;
-			e = this.outputStruct(s);
+			e = this.outputStruct(s, info);
 			q.append(e);
 			if (s.type == StructType.Infer)
 			{
 				var a3 = $("<div/>").addClass("math label");
-				this.outputToken(a3, s.token(2));
+				this.outputToken(a3, s.token(2), info);
 				q.append(a3);
 			}
 		}
 		else if (t instanceof Formula)
 		{
-			var f = <Formula> t;
-			e = this.outputFormula(f);
+			e = this.outputFormula(<Formula> t, info);
 			q.append(e);
 		}
 		else
 			console.error("[Application.outputToken] unexpected argument : " + t);
 
 		t.renderedElem = e;
+
+		return e;
+	}
+	private outputSymbol(q: JQuery, s: Symbol, info: OutputInfo): JQuery
+	{
+		var str = s.str;
+
+		if (info.arguments)
+		{
+			var m = str.match(/^#(\d+)$/);
+			if (m)
+			{
+				var arg = info.arguments;
+				info.arguments = null;
+				var e = this.outputToken(q, arg.token(parseInt(m[1]) - 1), info);
+				info.arguments = arg;
+				return e;
+			}
+		}
+
+		var style = this.outputCurrentStyle[0];
+
+		if (style != FontStyle.Normal)
+			str = this.transStyle(str, style);
+		if (str == "&")
+			str = Unicode.EmSpace;
+
+		var e = $("<div/>").text(str);
+
+		if (style != FontStyle.Normal)
+			e.addClass("styledLetter");
+		if (!this.proofMode && s.variable && (style == FontStyle.Normal || style == FontStyle.Bold))
+			e.addClass("variable");
+		else
+			e.addClass("symbol");
+
+		q.append(e);
 
 		return e;
 	}
@@ -1869,7 +1956,7 @@ class Application
 		return r;
 
 	}
-	private outputStruct(s: Structure): JQuery
+	private outputStruct(s: Structure, info: OutputInfo): JQuery
 	{
 		var e: JQuery;
 
@@ -1878,8 +1965,8 @@ class Application
 			case StructType.Frac:
 			case StructType.Infer:
 				e = $("<div/>").addClass("frac");
-				var prim = this.outputToken(e, s.token(0));
-				var seco = this.outputToken(e, s.token(1));
+				var prim = this.outputToken(e, s.token(0), info);
+				var seco = this.outputToken(e, s.token(1), info);
 				if (s.type == StructType.Infer)
 				{
 					e.addClass("reverseOrdered");
@@ -1892,7 +1979,7 @@ class Application
 			case StructType.Power:
 			case StructType.Index:
 				e = $("<div/>").addClass(s.type == StructType.Power ? "power" : "index");
-				this.outputToken(e, s.token(0));
+				this.outputToken(e, s.token(0), info);
 				break;
 
 			case StructType.Diagram:
@@ -1919,7 +2006,7 @@ class Application
 					{
 						var c = $("<div/>").addClass(m.type == StructType.Diagram ? "xycell" : "cell");
 
-						var t = this.outputToken(c, m.tokenAt(i, j));
+						var t = this.outputToken(c, m.tokenAt(i, j), info);
 						if (m == this.activeField)
 						{
 							var k = i * m.cols + j;
@@ -1943,25 +2030,25 @@ class Application
 					e = $("<div/>").addClass("math");
 					e.append($("<div/>").text(o.operator).addClass("operator"));
 					var f = $("<div/>").addClass("frac");
-					this.outputToken(f, s.token(1)).addClass("subFormula");
-					this.outputToken(f, s.token(0)).addClass("subFormula");
+					this.outputToken(f, s.token(1), info).addClass("subFormula");
+					this.outputToken(f, s.token(0), info).addClass("subFormula");
 					e.append(f);
 				}
 				else
 				{
 					e = $("<div/>").addClass("frac");
-					this.outputToken(e, s.token(1)).addClass("subFormula");
+					this.outputToken(e, s.token(1), info).addClass("subFormula");
 					e.append($("<div/>").text(o.operator).addClass("operator"));
-					this.outputToken(e, s.token(0)).addClass("subFormula");
+					this.outputToken(e, s.token(0), info).addClass("subFormula");
 				}
 				break;
 
 			case StructType.Accent:
 				var a = <Accent> s;
 				if (a.symbol == "‾")
-					e = this.outputFormula(a.elems[0]).addClass("overline");
+					e = this.outputFormula(a.elems[0], info).addClass("overline");
 				else if (a.symbol == "_")
-					e = this.outputFormula(a.elems[0]).addClass("underline");
+					e = this.outputFormula(a.elems[0], info).addClass("underline");
 				else
 				{
 					e = $("<div/>").addClass("frac");
@@ -1969,14 +2056,14 @@ class Application
 						e.addClass("reverseOrdered");
 					var ac = this.makeGlyph(a.symbol).addClass("accent").text(Unicode.EnSpace);
 					e.append(ac);
-					this.outputToken(e, s.token(0));
+					this.outputToken(e, s.token(0), info);
 				}
 				break;
 		}
 
 		return e;
 	}
-	private outputFormula(f: Formula): JQuery
+	private outputFormula(f: Formula, info: OutputInfo): JQuery
 	{
 		var r: JQuery;
 		var shift = false;
@@ -1994,7 +2081,7 @@ class Application
 			if (f.prefix != "")
 				braced.append(this.makeGlyph(f.prefix).addClass("bracket"));
 
-			var inner = this.outputFormulaInner(f);
+			var inner = this.outputFormulaInner(f, info);
 			if (f.prefix == "√")
 				inner.addClass("overline");
 			braced.append(inner);
@@ -2005,7 +2092,7 @@ class Application
 			r = braced;
 		}
 		else
-			r = this.outputFormulaInner(f);
+			r = this.outputFormulaInner(f, info);
 
 		if (shift)
 		{
@@ -2027,13 +2114,13 @@ class Application
 
 		return q;
 	}
-	private outputFormulaInner(f: Formula): JQuery
+	private outputFormulaInner(f: Formula, info: OutputInfo): JQuery
 	{
 		var e = $("<div/>").addClass(this.proofMode ? "formula" : "math");
 
 		if (f == this.macroOption.field)
 			e.addClass("macroField");
-		if (f == this.activeField)
+		if (f == this.activeField && !info.actGenerated)
 		{
 			var r: JQuery;
 			var markedFrom = Math.min(this.markedIndex, this.activeIndex);
@@ -2062,13 +2149,14 @@ class Application
 				if (j == f.count())
 					break;
 
-				this.outputToken(marked ? r : e, f.tokens[j++]);
+				this.outputToken(marked ? r : e, f.tokens[j++], info);
 			}
+			info.actGenerated = true;
 		}
 		else if (f.tokens.length > 0)
 			f.tokens.forEach(s =>
 			{
-				this.outputToken(e, s);
+				this.outputToken(e, s, info);
 			});
 		else
 			e.append($("<div/>").addClass("blank").text(Unicode.EnSpace));
@@ -2127,7 +2215,8 @@ class Application
 					{
 						var label = $("<div/>").addClass("arrowLabel");
 
-						this.outputToken(label, a.label);
+						// this implementation unable to macroize diagram
+						this.outputToken(label, a.label, { arguments: null, actGenerated: false });
 						if (this.activeField == a.label && a.label.empty())
 							this.active.text(Unicode.EnSpace);	// there must be some contents to layout in drawArrow
 

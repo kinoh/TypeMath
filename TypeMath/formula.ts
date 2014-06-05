@@ -59,25 +59,6 @@ class Num extends Token
 	}
 }
 
-class Macro extends Token
-{
-	name: string;
-
-	public constructor(name: string)
-	{
-		super();
-		this.name = name;
-	}
-	public clone(parent: TokenSeq): Macro
-	{
-		return new Macro(this.name);
-	}
-	public toString(): string
-	{
-		return "\\" + this.name;
-	}
-}
-
 interface TokenSeq
 {
 	parent: TokenSeq;
@@ -104,7 +85,8 @@ enum StructType
 	Matrix,
 	Diagram,
 	BigOpr,
-	Accent
+	Accent,
+	Macro,
 }
 
 class Structure extends Token /* TokenSeq */
@@ -443,6 +425,31 @@ class Accent extends Structure
 	public toString(): string
 	{
 		return "Accent" + this.symbol + "[" + this.elems.map(f => f.toString()).join(", ") + "]";
+	}
+}
+class Macro extends Structure
+{
+	name: string;
+
+
+	public constructor(parent: TokenSeq, name: string, argc: number)
+	{
+		super(parent, StructType.Macro, argc);
+		this.name = name;
+	}
+	public clone(parent: TokenSeq): Macro
+	{
+		return new Macro(parent, this.name, this.elems.length);
+	}
+	public toString(): string
+	{
+		var str = "\\" + this.name;
+		if (this.elems.length > 0)
+		{
+			var arg = this.elems.map(e => e.toString()).join("}{");
+			str += "{" + arg + "}";
+		}
+		return str;
 	}
 }
 

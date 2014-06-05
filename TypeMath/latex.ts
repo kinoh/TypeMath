@@ -68,7 +68,10 @@ class LaTeX
 		}
 		else if (t instanceof Macro)
 		{
-			return "\\" + (<Macro> t).name;
+			var mc = <Macro> t;
+			return "\\" + mc.name
+				+ (mc.elems.length > 0
+					? "{ " + mc.elems.map(e => LaTeX.trans(e)).join(" }{ ") + " }" : "");
 		}
 		else if (t instanceof Diagram)
 		{
