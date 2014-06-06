@@ -439,7 +439,12 @@ class Macro extends Structure
 	}
 	public clone(parent: TokenSeq): Macro
 	{
-		return new Macro(parent, this.name, this.elems.length);
+		var m = new Macro(parent, this.name, this.elems.length);
+		this.elems.forEach((f, i) =>
+		{
+			m.elems[i] = f.clone(m);
+		});
+		return m;
 	}
 	public toString(): string
 	{

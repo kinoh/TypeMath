@@ -634,31 +634,41 @@ class Application
 		this.macroOption.field = <Formula> this.activeField;
 		this.macroOption.epoch = epoch;
 	}
-	private exitMacroMode(): void
+	private exitMacroMode(register: boolean = true): boolean
 	{
-		var name: string;
-
-		for (var accepted = false; !accepted; )
+		if (register)
 		{
-			name = window.prompt("Macro Name:");
+			var name: string;
 
-			if (name === null)
-				return;
-			else if (name in this.keywords)
-				window.alert("Duplicate Name!");
-			else if (name.length == 0)
-				window.alert("No Input!");
-			else
-				accepted = true;
+			for (var accepted = false; !accepted; )
+			{
+				name = window.prompt("Macro Name:");
+
+				if (name === null)
+					return false;
+				else if (name in this.keywords)
+					window.alert("Duplicate Name!");
+				else if (name.length == 0)
+					window.alert("No Input!");
+				else
+					accepted = true;
+			}
+
+			this.registerMacro(name, this.macroOption.field.tokens.map(t => t.clone(null)));
+		}
+		else
+		{
+			if (!window.confirm("Would you exit macro mode?"))
+				return false;
 		}
 
-		this.registerMacro(name, this.macroOption.field.tokens.map(t => t.clone(null)));
+		this.macroOption.field = null;
+		this.macroOption.epoch = 0;
 
 		while (this.records.length > this.macroOption.epoch)
 			this.undo();
 
-		this.macroOption.field = null;
-		this.macroOption.epoch = 0;
+		return true;
 	}
 	private registerMacro(name: string, content: Token[]): void
 	{
@@ -956,6 +966,10 @@ class Application
 
 		while (i >= 0 && this.records[i].type == RecordType.Transfer)
 		{
+			if (this.inMacroMode && i == this.macroOption.epoch + 2
+				&& !this.exitMacroMode(false))
+				return;
+
 			var rt = <RecordTransfer> this.records[i];
 
 			if (rt.deeper)
@@ -1561,6 +1575,10 @@ class Application
 	private leaveFormula(forward: boolean, single?: boolean): boolean
 	{
 		var t: TokenSeq = this.activeField;
+
+		if (this.inMacroMode && t == this.macroOption.field
+			&& !this.exitMacroMode(false))
+			return;
 
 		if (t.parent instanceof Structure
 			&& !(single
