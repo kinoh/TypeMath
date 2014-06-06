@@ -623,6 +623,9 @@ class Application
 		this.render();
 	}
 
+	//////////////////////////////////////
+	/*  macro registering				*/
+	//////////////////////////////////////
 	private enterMacroMode(): void
 	{
 		var epoch = this.records.length;
@@ -718,6 +721,9 @@ class Application
 		return count;
 	}
 
+	//////////////////////////////////////
+	/*  transition						*/
+	//////////////////////////////////////
 	private movePrev(): void
 	{
 		if (this.activeIndex == 0)
@@ -874,6 +880,9 @@ class Application
 		}
 	}
 
+	//////////////////////////////////////
+	/*  autocomplete					*/
+	//////////////////////////////////////
 	private changeCandidate(next: boolean): void
 	{
 		if (this.candIndex < 0)
@@ -959,6 +968,9 @@ class Application
 		});
 	}
 
+	//////////////////////////////////////
+	/*  undo							*/
+	//////////////////////////////////////
 	private undo(): void
 	{
 		var i = this.records.length - 1;
@@ -971,42 +983,51 @@ class Application
 				return;
 
 			var rt = <RecordTransfer> this.records[i];
-
-			if (rt.deeper)
-				dest = dest.parent;
-			else
-			{
-				var t: Token;
-				if ("from" in this.records[i])
-				{
-					var rdt = <RecordDiagramTrans> rt;
-					if (dest instanceof Diagram)
-					{
-						var d = <Diagram> dest;
-						var k = d.findArrow(rdt.from, rdt.to, rdt.n);
-						t = d.arrows[k.row][k.col][k.i].label;
-					}
-					else
-						console.error("[Application.undo] inconsistent transfer record (arrow label)");
-				}
-				else
-					t = dest.token(rt.index);
-				if (t instanceof Structure || t instanceof Formula)
-					dest = <TokenSeq> t;
-				else
-					console.error("[Application.undo] inconsistent transfer record");
-			}
-
+			dest = this.rollbackTransfer(dest, rt);
 			i--;
 		}
-		if (i < 0)
-			return;
 
 		this.activeField = dest;
 
-		if (this.records[i].type == RecordType.Edit)
+		if (i >= 0)
+			this.rollbackEdit(dest, this.records[i]);
+
+		this.records.splice(i, this.records.length - i + 1);
+	}
+	private rollbackTransfer(dest: TokenSeq, rt: RecordTransfer): TokenSeq
+	{
+		if (rt.deeper)
+			return dest.parent;
+
+		var t: Token;
+
+		if ("from" in rt)
 		{
-			var re = <RecordEdit> this.records[i];
+			var rdt = <RecordDiagramTrans> rt;
+			if (dest instanceof Diagram)
+			{
+				var d = <Diagram> dest;
+				var k = d.findArrow(rdt.from, rdt.to, rdt.n);
+				t = d.arrows[k.row][k.col][k.i].label;
+			}
+			else
+				console.error("[Application.rollbackTransfer] inconsistent transfer record (arrow label)");
+		}
+		else
+			t = dest.token(rt.index);
+
+		if (t instanceof Structure || t instanceof Formula)
+			dest = <TokenSeq> t;
+		else
+			console.error("[Application.rollbackTransfer] inconsistent transfer record");
+
+		return dest;
+	}
+	private rollbackEdit(dest: TokenSeq, r: Record): void
+	{
+		if (r.type == RecordType.Edit)
+		{
+			var re = <RecordEdit> r;
 
 			if (re.insert)
 			{
@@ -1018,8 +1039,8 @@ class Application
 					var p = a.pos(re.index);
 					var m = (<Matrix> re.contents[0]);
 					to = re.index
-						+ (Math.min(m.rows, a.rows - p.row) - 1) * a.cols
-						+ (Math.min(m.cols, a.cols - p.col) - 1);
+					+ (Math.min(m.rows, a.rows - p.row) - 1) * a.cols
+					+ (Math.min(m.cols, a.cols - p.col) - 1);
 				}
 				else
 					to = re.index + re.contents.length;
@@ -1032,30 +1053,30 @@ class Application
 				this.activeIndex = dest.paste(re.index, re.contents);
 			}
 		}
-		else if (this.records[i].type == RecordType.DiagramEdit)
+		else if (r.type == RecordType.DiagramEdit)
 		{
-			var rea = <RecordDiagramEdit> this.records[i];
+			var rea = <RecordDiagramEdit> r;
 			var d: Diagram;
 
 			if (dest instanceof Diagram)
 				d = <Diagram> dest;
 			else
-				console.error("[Application.undo] incosistent record");
+				console.error("[Application.rollbackEdit] incosistent record (diagram)");
 
 			if (rea.insert)
 				d.removeArrow(rea.option.from, rea.index, 0);
 			else
 				d.addArrow(rea.option.from, rea.index, rea.option.num, rea.option.style, rea.option.head);
 		}
-		else if (this.records[i].type == RecordType.DiagramDeco)
+		else if (r.type == RecordType.DiagramDeco)
 		{
-			var rdd = <RecordDiagramDeco> this.records[i];
+			var rdd = <RecordDiagramDeco> r;
 			var d: Diagram;
 
 			if (dest instanceof Diagram)
 				d = <Diagram> dest;
 			else
-				console.error("[Application.undo] incosistent record");
+				console.error("[Application.rollbackEdit] incosistent record (diagram decolation)");
 
 			switch (rdd.command)
 			{
@@ -1082,9 +1103,9 @@ class Application
 
 			this.activeIndex = rdd.index;
 		}
-		else if (this.records[i].type == RecordType.EditMatrix)
+		else if (r.type == RecordType.EditMatrix)
 		{
-			var rem = <RecordEditMatrix> this.records[i];
+			var rem = <RecordEditMatrix> r;
 			var m: Matrix;
 
 			if (dest instanceof Matrix)
@@ -1092,14 +1113,17 @@ class Application
 			else if (dest.parent instanceof Matrix)
 				m = <Matrix> dest.parent;
 			else
-				console.error("[Application.undo] incosistent record");
+				console.error("[Application.rollbackEdit] incosistent record (matrix)");
 
 			(rem.extend ? m.shrink : m.extend).bind(m)(rem.horizontal);
 		}
-
-		this.records.splice(i, this.records.length - i + 1);
+		else
+			console.error("[Application.rollbackEdit] unexpected record");
 	}
 
+	//////////////////////////////////////
+	/*  mouse operation					*/
+	//////////////////////////////////////
 	private dragSelect(e: JQueryEventObject): void
 	{
 		if (!this.dragFrom)
@@ -1174,6 +1198,9 @@ class Application
 				indexNear = (p.x < g.x ? i : i + 1);
 			}
 		}
+
+		if (indexNear < 0)
+			return;
 
 		if (parent != this.activeField)
 			this.jumpFormula(parent);
