@@ -495,7 +495,7 @@ class Application
 						&& (<Symbol> f.tokens[this.activeIndex - 1]).str == "=")
 					{
 						var res = Calc.eval(f.tokens.slice(0, this.activeIndex - 1));
-						this.pasteToken([res !== null ? res : new Symbol("?", false)]);
+						this.pasteToken(res !== null ? res : [new Symbol("?", false)]);
 						break;
 					}
 				}

@@ -79,8 +79,31 @@ class Numeric extends Token
 		if (approx !== undefined)
 			this.approx = approx;
 	}
-
-	public static fromReal(n: number)
+	public static negate(n: Numeric): Numeric
+	{
+		return new Numeric(-n.num, n.den, n.approx);
+	}
+	public static add(m: Numeric, n: Numeric): Numeric
+	{
+		return new Numeric(
+			m.num * n.den + n.num * m.den, m.den * n.den,
+			m.approx || n.approx);
+	}
+	public static sub(m: Numeric, n: Numeric): Numeric
+	{
+		return new Numeric(
+			m.num * n.den + -n.num * m.den, m.den * n.den,
+			m.approx || n.approx);
+	}
+	public static mul(m: Numeric, n: Numeric): Numeric
+	{
+		return new Numeric(m.num * n.num, m.den * n.den, m.approx || n.approx);
+	}
+	public static div(m: Numeric, n: Numeric): Numeric
+	{
+		return new Numeric(m.num * n.den, m.den * n.num, m.approx || n.approx);
+	}
+	public static fromReal(n: number): Numeric
 	{
 		var s = n.toString();
 		var i: number;
@@ -102,10 +125,156 @@ class Numeric extends Token
 			: this.num.toString() + "/" + this.den.toString();
 	}
 }
+class Term
+{
+	coeff: Numeric;
+	exponent: { [key: string]: number };
+	n: number;
+
+	public constructor(coeff: Numeric, exponent: { [key: string]: number })
+	{
+		this.coeff = coeff;
+		this.exponent = exponent;
+		this.n = Object.keys(exponent).length;
+	}
+	public porpotionalTo(t: Term): boolean
+	{
+		if (t.n != this.n)
+			return false;
+
+		for (var x in this.exponent)
+			if (!(x in t.exponent && t.exponent[x] == this.exponent[x]))
+				return false;
+
+		return true;
+	}
+
+	public toString(): string
+	{
+		var str = this.coeff.toString();
+
+		for (var x in this.exponent)
+			str += x + "^" + this.exponent[x];
+
+		return str;
+	}
+}
+class Polynomial extends Token
+{
+	term: Term[] = [];
+
+	public constructor(term: Term[])
+	{
+		super();
+
+		var f: { [key: string]: number } = {};
+
+		this.term = term;
+	}
+	public static fromSymbol(s: Symbol): Polynomial
+	{
+		var f: { [key: string]: number } = {};
+		f[s.str] = 1;
+		var t = new Term(Numeric.One, f);
+		return new Polynomial([t]);
+	}
+	public static fromNumeric(n: Numeric): Polynomial
+	{
+		var t = new Term(n, {});
+		return new Polynomial([t]);
+	}
+	public static negate(p: Polynomial): Polynomial
+	{
+		return new Polynomial(p.term.map(t => new Term(Numeric.negate(t.coeff), t.exponent)));
+	}
+	private static additionImpl(p: Polynomial, q: Polynomial, sub: boolean): Polynomial
+	{
+		var t: Term[] = [];
+
+		for (var i = 0; i < p.term.length; i++)
+			t.push(p.term[i]);
+
+		for (var j = 0; j < q.term.length; j++)
+		{
+			var a = q.term[j];
+			var found = false;
+			for (var i = 0; i < t.length; i++)
+			{
+				if (a.porpotionalTo(t[i]))
+				{
+					t[i].coeff = sub
+						? Numeric.sub(t[i].coeff, a.coeff)
+						: Numeric.add(t[i].coeff, a.coeff);
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				t.push(a);
+		}
+
+		for (var i = 0; i < t.length; i++)
+			if (!t[i].coeff.approx && t[i].coeff.value == 0)
+				t.splice(i--, 1);
+
+		return new Polynomial(t);
+	}
+	public static add(p: Polynomial, q: Polynomial): Polynomial
+	{
+		return Polynomial.additionImpl(p, q, false);
+	}
+	public static sub(p: Polynomial, q: Polynomial): Polynomial
+	{
+		return Polynomial.additionImpl(p, q, true);
+	}
+	private static multiplyImpl(p: Polynomial, q: Polynomial, div: boolean): Polynomial
+	{
+		var t: Term[] = [];
+
+		for (var i = 0; i < p.term.length; i++)
+		{
+			for (var j = 0; j < q.term.length; j++)
+			{
+				var c = Numeric.mul(p.term[i].coeff, q.term[j].coeff);
+				var f: { [key: string]: number } = {};
+				for (var x in p.term[i].exponent)
+					f[x] = p.term[i].exponent[x];
+				for (var x in q.term[j].exponent)
+				{
+					if (x in f)
+						f[x] += q.term[j].exponent[x];
+					else
+						f[x] = q.term[j].exponent[x];
+				}
+				for (var x in f)
+				{
+					if (f[x] == 0)
+						delete f[x];
+				}
+				t.push(new Term(c, f));
+			}
+		}
+
+		return new Polynomial(t);
+	}
+	public static mul(p: Polynomial, q: Polynomial): Polynomial
+	{
+		return Polynomial.multiplyImpl(p, q, false);
+	}
+	public static div(p: Polynomial, q: Polynomial): Polynomial
+	{
+		return Polynomial.multiplyImpl(p, q, true);
+	}
+
+	public toString(): string
+	{
+		return this.term.map(t => t.toString()).join(" + ").replace("+ -", "- ");
+	}
+}
 
 class Calc
 {
-	public static eval(t: Token[]): Token
+	public static eval(t: Token[]): Token[]
 	{
 		console.debug("eval start : " + t.toString());
 
@@ -114,56 +283,97 @@ class Calc
 		console.debug("eval result : " + (r ? r.toString() : "no value"));
 
 		if (r)
-			return Calc.fromNumeric(r);
+			return Calc.interpret(r);
 		else
 			return null;
 	}
 
-	private static fromNumeric(t: Token): Token
+	private static interpret(t: Token): Token[]
 	{
-		if (t instanceof Numeric)
+		if (t instanceof Polynomial)
 		{
-			var n = <Numeric> t;
-			if (!n.approx)
-			{
-				if (n.den == 1)
-					return new Num(n.num.toString());
-
-				var s = new Structure(null, StructType.Frac);
-				s.elems[0] = new Formula(s);
-				s.elems[0].tokens.push(new Num(n.num.toString()));
-				s.elems[1] = new Formula(s);
-				s.elems[1].tokens.push(new Num(n.den.toString()));
-				return s;
-			}
-			else
-			{
-				return new Num(n.toString());
-			}
+			return Calc.fromPolynomial(<Polynomial> t);
+		}
+		else if (t instanceof Numeric)
+		{
+			return [Calc.fromNumeric(<Numeric> t)];
 		}
 		else if (t instanceof Matrix)
 		{
+			var f = new Formula(null, "(", ")");
 			var m = <Matrix> t;
 
 			for (var i = 0; i < m.elems.length; i++)
 			{
-				m.elems[i].tokens = m.elems[i].tokens.map(Calc.fromNumeric);
+				m.elems[i].tokens = m.elems[i].tokens.reduce(
+					(prev: Token[], curr) => prev.concat(Calc.interpret(curr)), []);
 			}
-
-			return m;
+			f.tokens.push(m);
+			
+			return [f];
 		}
 
 		return null;
+	}
+	private static fromPolynomial(p: Polynomial): Token[]
+	{
+		var t: Token[] = [];
+		
+		for (var i = 0; i < p.term.length; i++)
+		{
+			var a = p.term[i];
+
+			if (i > 0 && a.coeff.value > 0)
+				t.push(new Symbol("+", false));
+
+			if (a.coeff.approx || a.coeff.value != 1 || Object.keys(a.exponent).length == 0)
+				t.push(Calc.fromNumeric(a.coeff));
+
+			for (var x in a.exponent)
+			{
+				t.push(new Symbol(x, true));
+				if (a.exponent[x] != 1)
+				{
+					var ex = new Structure(null, StructType.Power);
+					ex.elems[0].tokens.push(new Num(a.exponent[x].toString()));
+					t.push(ex);
+				}
+			}
+		}
+
+		if (t.length == 0)
+			t.push(Calc.fromNumeric(Numeric.Zero));
+
+		return t;
+	}
+	private static fromNumeric(n: Numeric): Token
+	{
+		if (!n.approx)
+		{
+			if (n.den == 1)
+				return new Num(n.num.toString());
+
+			var s = new Structure(null, StructType.Frac);
+			s.elems[0] = new Formula(s);
+			s.elems[0].tokens.push(new Num(n.num.toString()));
+			s.elems[1] = new Formula(s);
+			s.elems[1].tokens.push(new Num(n.den.toString()));
+			return s;
+		}
+		else
+		{
+			return new Num(n.toString());
+		}
 	}
 
     private static operator: Operator[] = [
 		{ symbol: "mod", type: OperatorType.Infix, priority: 0 },
 		{ symbol: "+", type: OperatorType.Infix, priority: 1 },
 		{ symbol: "-", type: OperatorType.Infix, priority: 1 },
+		{ symbol: "+", type: OperatorType.Prefix, priority: 1 },
+		{ symbol: "-", type: OperatorType.Prefix, priority: 1 },
 		{ symbol: "*", type: OperatorType.Infix, priority: 2 },
 		{ symbol: "/", type: OperatorType.Infix, priority: 2 },
-		{ symbol: "+", type: OperatorType.Prefix, priority: 3 },
-		{ symbol: "-", type: OperatorType.Prefix, priority: 3 },
 		{ symbol: "arccos", type: OperatorType.Prefix, priority: 3, func: Math.acos },
 		{ symbol: "arcsin", type: OperatorType.Prefix, priority: 3, func: Math.asin},
 		{ symbol: "arctan", type: OperatorType.Prefix, priority: 3, func: Math.atan },
@@ -189,8 +399,8 @@ class Calc
 		{ symbol: "^", type: OperatorType.Infix, priority: 4 },
 		{ symbol: "!", type: OperatorType.Suffix, priority: 5 },
 		{ symbol: "(", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
-		{ symbol: "]", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
-		{ symbol: "}", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
+		{ symbol: "[", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
+		{ symbol: "{", type: OperatorType.Prefix, priority: Number.POSITIVE_INFINITY },
 		{ symbol: ")", type: OperatorType.Suffix, priority: Number.POSITIVE_INFINITY },
 		{ symbol: "]", type: OperatorType.Suffix, priority: Number.POSITIVE_INFINITY },
 		{ symbol: "}", type: OperatorType.Suffix, priority: Number.POSITIVE_INFINITY }
@@ -218,13 +428,21 @@ class Calc
 
 	private static evalSeq(t: Token[]): Token
 	{
+		var opr: string[] = Calc.operator.map(o => o.symbol);
 		var q: Token[] = [];
 
 		for (var i = 0; i < t.length; i++)
 		{
 			var r: Token = null;
 
-			if (t[i] instanceof Num)
+			if (t[i] instanceof Symbol)
+			{
+				var v = <Symbol> t[i];
+
+				if (opr.indexOf(v.str) < 0)
+					r = Polynomial.fromSymbol(v);
+			}
+			else if (t[i] instanceof Num)
 			{
 				var n = <Num> t[i];
 				if (n.value.indexOf(".") >= 0)
@@ -414,7 +632,20 @@ class Calc
 		{
 			var m = <Numeric> x;
 			var n = <Numeric> y;
-			return new Numeric(m.num * n.den + (sub ? -n.num : n.num) * m.den, m.den * n.den, m.approx || n.approx);
+			return sub ? Numeric.sub(m, n) : Numeric.add(m, n);
+		}
+		else if (x instanceof Polynomial || y instanceof Polynomial)
+		{
+			var p: Polynomial, q: Polynomial;
+			if (x instanceof Polynomial)
+				p = <Polynomial> x;
+			else if (x instanceof Numeric)
+				p = Polynomial.fromNumeric(<Numeric> x);
+			if (y instanceof Polynomial)
+				q = <Polynomial> y;
+			else if (y instanceof Numeric)
+				q = Polynomial.fromNumeric(<Numeric> y);
+			return sub ? Polynomial.sub(p, q) : Polynomial.add(p, q);
 		}
 		else if (x instanceof Matrix && y instanceof Matrix)
 		{
@@ -451,7 +682,7 @@ class Calc
 		{
 			var m = <Numeric> x;
 			var n = <Numeric> y;
-			return new Numeric(m.num * (div ? n.den : n.num), m.den * (div ? n.num : n.den), m.approx || n.approx);
+			return div ? Numeric.div(m, n) : Numeric.mul(m, n);
 		}
 		else if (x instanceof Numeric && y instanceof Matrix && !div)
 		{
@@ -469,6 +700,19 @@ class Calc
 				}
 			}
 			return r;
+		}
+		else if (x instanceof Polynomial || y instanceof Polynomial)
+		{
+			var p: Polynomial, q: Polynomial;
+			if (x instanceof Polynomial)
+				p = <Polynomial> x;
+			else if (x instanceof Numeric)
+				p = Polynomial.fromNumeric(<Numeric> x);
+			if (y instanceof Polynomial)
+				q = <Polynomial> y;
+			else if (y instanceof Numeric)
+				q = Polynomial.fromNumeric(<Numeric> y);
+			return div ? Polynomial.div(p, q) : Polynomial.mul(p, q);
 		}
 		else if (x instanceof Matrix && y instanceof Matrix)
 		{
@@ -525,8 +769,11 @@ class Calc
 	{
 		if (x instanceof Numeric)
 		{
-			var n = <Numeric> x;
-			return new Numeric(-n.num, n.den, n.approx);
+			return Numeric.negate(<Numeric> x);
+		}
+		else if (x instanceof Polynomial)
+		{
+			return Polynomial.negate(<Polynomial> x);
 		}
 		else if (x instanceof Matrix)
 		{
@@ -564,6 +811,20 @@ class Calc
 			}
 
 			return Numeric.fromReal(Math.pow(a.value, b.value));
+		}
+		else if (x instanceof Polynomial && y instanceof Numeric)
+		{
+			var f = <Polynomial> x;
+			var b = <Numeric> y;
+
+			if (!b.approx && b.num > 0 && b.den == 1)
+			{
+				var ex = Math.abs(b.num);
+				var g: Polynomial = f;
+				for (var i = 1; i < ex; i++)
+					g = Polynomial.mul(f, g);
+				return g;
+			}
 		}
 		else if (x instanceof Matrix && y instanceof Numeric)
 		{
