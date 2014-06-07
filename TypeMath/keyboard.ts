@@ -41,19 +41,24 @@ class Keyboard
 
 		if (e.char && e.keyCode > 32)	// IE
 			key = e.key;
-		else if ((<any> e).keyIdentifier !== undefined)	// Safari, Opera, Chrome
+		else if (!e.shiftKey)
 		{
-			var id = <string> (<any> e).keyIdentifier;
-			key = (id in Keyboard.keyMapWebkit
+			if ((<any> e).keyIdentifier !== undefined)	// Safari, Opera, Chrome
+			{
+				var id = <string> (<any> e).keyIdentifier;
+				key = (id in Keyboard.keyMapWebkit
 				? Keyboard.keyMapWebkit[id][e.shiftKey ? 1 : 0]
 				: this.getAsciiKey(parseInt(id.substr(2), 16)));
-			if (!e.shiftKey)
-				key = key.toLowerCase();
+				if (!e.shiftKey)
+					key = key.toLowerCase();
+			}
+			else
+			{
+				key = (code in this.keyMapNormal
+					? this.keyMapNormal[code]
+					: this.getAsciiKey(code).toLowerCase());
+			}
 		}
-		else if (!e.shiftKey)
-			key = (code in this.keyMapNormal
-				? this.keyMapNormal[code]
-				: this.getAsciiKey(code).toLowerCase());
 		else
 			key = (code in this.keyMapShifted
 				? this.keyMapShifted[code]
