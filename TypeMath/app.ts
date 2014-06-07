@@ -666,10 +666,11 @@ class Application
 		}
 
 		this.macroOption.field = null;
-		this.macroOption.epoch = 0;
 
 		while (this.records.length > this.macroOption.epoch)
 			this.undo();
+
+		this.macroOption.epoch = 0;
 
 		return true;
 	}
@@ -978,12 +979,13 @@ class Application
 
 		while (i >= 0 && this.records[i].type == RecordType.Transfer)
 		{
-			if (this.inMacroMode && i == this.macroOption.epoch + 2
-				&& !this.exitMacroMode(false))
+			if (this.inMacroMode && i == this.macroOption.epoch + 2)
+			{
+				this.exitMacroMode(false);
 				return;
+			}
 
-			var rt = <RecordTransfer> this.records[i];
-			dest = this.rollbackTransfer(dest, rt);
+			dest = this.rollbackTransfer(dest, <RecordTransfer> this.records[i]);
 			i--;
 		}
 
