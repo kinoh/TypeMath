@@ -1669,8 +1669,9 @@ class Application
 			i--;
 		var dest = this.activeField.token(i);
 
-		if (this.markedIndex < 0 && dest && (dest instanceof Structure || dest instanceof Formula)
-			&& (<TokenSeq> dest).count() > 0)
+		if (this.markedIndex < 0 && dest
+			&& (dest instanceof Structure && (<Structure> dest).count() > 0
+				|| dest instanceof Formula))
 		{
 			var rec: RecordTransfer = {
 				type: RecordType.Transfer,
@@ -1803,8 +1804,8 @@ class Application
 		};
 		this.records.push(rec);
 
-		if ((t instanceof Structure || t instanceof Formula)
-			&& (<TokenSeq> t).count() > 0)
+		if (t instanceof Structure && (<Structure> t).count() > 0
+			|| t instanceof Formula)
 		{
 			this.enterFormula(true);
 			if (captured)
