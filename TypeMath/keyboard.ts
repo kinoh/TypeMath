@@ -5,21 +5,16 @@
 
 class Keyboard
 {
-    private static keyMapNormal = {
-		189: '-', 222: '^', 220: '¥', 192: '@', 219: '[',	/* Opera, Chrome, Safari */
-		187: ';', 186: ':', 221: ']', 188: ',', 190: '.',
-		191: '/', 226: '\\',
-		173: '-', 160: '^',  64: '@',  59: ';',  58: ':'	/* Firefox */
-	};
-	private static keyMapShifted = {
-		 49: '!',  50: '"',  51: '#',  52: '$',  53: '%',
-		 54: '&',  55: "'",  56: '(',  57: ')', 173: '=',
-		189: '=', 222: "~", 220: '|', 192: '`', 219: '{',
-		187: '+', 186: '*', 221: '}', 188: '<', 190: '>',
-		191: '?', 226: '_',
-		160: '~',  64: '`',  59: '+',  58: '*'
-	};
-	private static keyMapWebkit = {
+	private static keyMapBlink = {
+		"U+0031": ["1", "!"],
+		"U+0032": ["2", "\""],
+		"U+0033": ["3", "#"],
+		"U+0034": ["4", "$"],
+		"U+0035": ["5", "%"],
+		"U+0036": ["6", "&"],
+		"U+0037": ["7", "'"],
+		"U+0038": ["8", "("],
+		"U+0039": ["9", ")"],
 		"U+00BD": ["-", "="],
 		"U+00DE": ["^", "~"],
 		"U+00DC": ["¥", "|"],
@@ -39,30 +34,20 @@ class Keyboard
 		var code = e.keyCode;
 		var key = "";
 
-		if (e.char && e.keyCode > 32)	// IE
+		if (e.key !== undefined && e.key != " " && e.key.length == 1)
 			key = e.key;
-		else if (!e.shiftKey)
+		else if (e.hasOwnProperty("keyIdentifier"))	// Webkit, Blink
 		{
-			if ((<any> e).keyIdentifier !== undefined)	// Safari, Opera, Chrome
+			var id = <string> (<any> e).keyIdentifier;
+			if (id in Keyboard.keyMapBlink)
+				key = Keyboard.keyMapBlink[id][e.shiftKey ? 1 : 0];
+			else
 			{
-				var id = <string> (<any> e).keyIdentifier;
-				key = (id in Keyboard.keyMapWebkit
-				? Keyboard.keyMapWebkit[id][e.shiftKey ? 1 : 0]
-				: this.getAsciiKey(parseInt(id.substr(2), 16)));
+				key = this.getAsciiKey(parseInt(id.substr(2), 16));
 				if (!e.shiftKey)
 					key = key.toLowerCase();
 			}
-			else
-			{
-				key = (code in this.keyMapNormal
-					? this.keyMapNormal[code]
-					: this.getAsciiKey(code).toLowerCase());
-			}
 		}
-		else
-			key = (code in this.keyMapShifted
-				? this.keyMapShifted[code]
-				: this.getAsciiKey(code));
 
 		return key;
 	}
