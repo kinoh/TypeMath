@@ -3,6 +3,7 @@
 /// <reference path="formula.ts" />
 /// <reference path="diagram.ts" />
 /// <reference path="latex.ts" />
+/// <reference path="latexReader.ts" />
 /// <reference path="unicode.ts" />
 /// <reference path="glyph.ts" />
 /// <reference path="calc.ts" />
@@ -100,6 +101,8 @@ class Application
 	private field: JQuery;
 	private active: JQuery;
 	private latex: JQuery;
+	private importer: JQuery;
+	private importerBox: JQuery;
 	private candy: JQuery;
 	private ghost: JQuery;
 	private selectedArea: JQuery;
@@ -132,6 +135,7 @@ class Application
 		field: null,
 		epoch: 0
 	};
+	private importMode: boolean;
 	private proofMode: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
@@ -193,9 +197,11 @@ class Application
 		return this.macroOption.field !== null;
 	}
 
-	constructor(field: JQuery, latex: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, proof: JQuery)
+	constructor(field: JQuery, latex: JQuery, importer: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, proof: JQuery)
 	{
 		this.field = field;
+		this.importer = importer;
+		this.importerBox = importer.children("textarea");
 		this.latex = latex;
 		this.candy = candy;
 		this.ghost = ghost;
@@ -328,6 +334,21 @@ class Application
 	{
 		var key = Keyboard.knowKey(e);
 
+		if (this.importMode)
+		{
+			if (e.ctrlKey && key == "l")
+			{
+				var src = this.importerBox.val();
+				var code = LaTeXReader.parse(src);
+				this.interpretLaTeX(code);
+				this.importer.css("visibility", "hidden");
+				this.importMode = false;
+				this.render();
+				e.preventDefault();
+			}
+			return;
+		}
+
 		if (key == "")
 		{
 			this.processControlInput(e);
@@ -335,7 +356,7 @@ class Application
 		}
 		else if (e.ctrlKey)
 		{
-			this.processModifiedInput(key);
+			this.processModifiedInput(e, key);
 			return;
 		}
 
@@ -591,8 +612,10 @@ class Application
 			e.preventDefault();
 		this.render();
 	}
-	private processModifiedInput(key: string): void
+	private processModifiedInput(e: KeyboardEvent, key: string): void
 	{
+		var suppress = true;
+
 		switch (key)
 		{
 			case "c":
@@ -618,9 +641,64 @@ class Application
 				else
 					this.exitMacroMode();
 				break;
+			case "l":
+				if (!this.importMode)
+				{
+					this.importerBox.val("");
+					this.importer.css("visibility", "visible");
+					this.importerBox.focus();
+					this.importMode = true;
+				}
+				break;
+			default:
+				suppress = false;
+				break;
 		}
 
+		if (suppress)
+			e.preventDefault();
 		this.render();
+	}
+
+	//////////////////////////////////////
+	/*  Import LaTeX                    */
+	//////////////////////////////////////
+	public interpretLaTeX(code: LaTeXAST): void
+	{
+		switch (code.type)
+		{
+			case LaTeXASTType.Sequence:
+				console.debug("LaTeX: seq");
+				for (var i = 0; i < code.children.length; i++)
+					this.interpretLaTeX(code.children[i]);
+				break;
+			case LaTeXASTType.Environment:
+			case LaTeXASTType.Command:
+				console.debug("LaTeX: env/cmd " + code.value);
+				this.interpretLaTeXCode(code.value, InputType.String);
+				for (var i = 0; i < code.children.length; i++)
+				{
+					this.interpretLaTeX(code.children[i]);
+					this.moveNext();
+				}
+				break;
+			case LaTeXASTType.Number:
+				console.debug("LaTeX: n " + code.value);
+				this.interpretLaTeXCode(code.value, InputType.Number);
+				break;
+			case LaTeXASTType.Symbol:
+				console.debug("LaTeX: s " + code.value);
+				this.interpretLaTeXCode(code.value,
+					this.symbols.indexOf(code.value) >= 0
+					? InputType.Symbol : InputType.String);
+				break;
+		}
+	}
+	private interpretLaTeXCode(code: string, type: InputType): void
+	{
+		this.inputType = type;
+		this.currentInput = code;
+		this.interpretInput();
 	}
 
 	//////////////////////////////////////
@@ -2304,5 +2382,5 @@ var app;
 
 window.onload = () =>
 {
-	app = new Application($("#field"), $("#latex"), $("#candy"), $("#ghost"), $("#select"), $("#proofMode"));
+	app = new Application($("#field"), $("#latex"), $("#importer"), $("#candy"), $("#ghost"), $("#select"), $("#proofMode"));
 };

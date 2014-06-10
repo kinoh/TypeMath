@@ -29,6 +29,7 @@
     <Content Include="keyboard.ts" />
     <Content Include="jquery.d.ts" />
     <Content Include="latex.ts" />
+    <TypeScriptCompile Include="latexReader.ts" />
     <Content Include="symbolTable.js" />
     <Content Include="unicode.ts" />
     <Content Include="usage.css" />
