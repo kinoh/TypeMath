@@ -53,7 +53,7 @@ class Keyboard
 	}
 	private static getAsciiKey(code: number): string
 	{
-		if (code >= 48 && code <= 57 || code >= 65 && code <= 90)
+		if (code >= 0x21 && code <= 0x7E)
 			return String.fromCharCode(code);
 		else
 			return "";
