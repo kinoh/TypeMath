@@ -695,7 +695,7 @@ class Application
 				{
 					this.interpretLaTeXCode(code.value,
 						this.symbols.indexOf(code.value) >= 0
-						? InputType.Symbol : InputType.String);
+						? InputType.Symbol : InputType.String, true);
 					for (var i = 0; i < code.children.length; i++)
 					{
 						this.interpretLaTeX(code.children[i]);
