@@ -701,6 +701,8 @@ class Application
 						this.interpretLaTeX(code.children[i]);
 						this.moveNext();
 					}
+					if (code.value.indexOf("matrix") >= 1)
+						this.moveNext();
 				}
 				break;
 			case LaTeXASTType.Number:
@@ -709,9 +711,27 @@ class Application
 				break;
 			case LaTeXASTType.Symbol:
 				console.debug("LaTeX: s " + code.value);
-				this.interpretLaTeXCode(code.value,
-					this.symbols.indexOf(code.value) >= 0
-					? InputType.Symbol : InputType.String);
+				if (code.value == "&"
+					&& this.activeField.parent instanceof Matrix)
+				{
+					this.leaveFormula(true, true);
+					if (this.activeIndex == this.activeField.parent.count() - 1)
+						this.modifyMatrix(true, true);
+					this.moveNext();
+					this.enterFormula(true);
+				}
+				else if (code.value == "\\\\"
+					&& this.activeField.parent instanceof Matrix)
+				{
+					this.modifyMatrix(false, true);
+					this.moveNext();
+				}
+				else
+				{
+					this.interpretLaTeXCode(code.value,
+						this.symbols.indexOf(code.value) >= 0
+						? InputType.Symbol : InputType.String);
+				}
 				break;
 		}
 	}

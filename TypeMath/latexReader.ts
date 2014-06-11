@@ -73,6 +73,15 @@ class LaTeXReader
 		switch (c)
 		{
 			case "\\":
+				if (this.rest.charAt(1) == "\\")
+				{
+					this.next(2);
+					return {
+						type: LaTeXASTType.Symbol,
+						value: "\\\\",
+						children: null
+					};
+				}
 				m = this.rest.match(/^\\([a-zA-Z]+)/);
 				if (!m)
 					console.error("[LaTeXReader.parseToken] unexpected : "
