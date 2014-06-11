@@ -683,6 +683,14 @@ class Application
 						this.macroOption.field.tokens.map(t => t.clone(null)));
 					this.exitMacroMode(false, true);
 				}
+				else if (code.value == "left")
+				{
+					this.interpretLaTeXCode(code.children[0].value, InputType.Symbol, true);
+				}
+				else if (code.value == "right")
+				{
+					this.moveNext();
+				}
 				else
 				{
 					this.interpretLaTeXCode(code.value,
@@ -707,11 +715,11 @@ class Application
 				break;
 		}
 	}
-	private interpretLaTeXCode(code: string, type: InputType): void
+	private interpretLaTeXCode(code: string, type: InputType, force: boolean = false): void
 	{
 		this.inputType = type;
 		this.currentInput = code;
-		this.interpretInput(false, false);
+		this.interpretInput(force, false);
 	}
 
 	//////////////////////////////////////
@@ -1363,6 +1371,10 @@ class Application
 				break;
 			case "^":
 			case "_":
+				if (this.activeField.parent
+					&& this.activeField.parent instanceof BigOpr
+					&& this.activeIndex == 0)
+					break;
 				struct = new Structure(this.activeField,
 					input == "^" ? StructType.Power : StructType.Index);
 				struct.elems[0] = new Formula(struct);

@@ -56,7 +56,7 @@ class LaTeXReader
 		var c = this.rest.charAt(0);
 		var m: string[];
 
-		while (c == " ")
+		while (c == " " || c == "\n" || c == "\r")
 		{
 			this.next(1);
 			c = this.rest.charAt(0);
@@ -174,6 +174,8 @@ class LaTeXReader
 				return [true, true];
 			case "sqrt":
 				return [false, true];
+			case "left":
+			case "right":
 			case "mathbf":
 			case "mathrm":
 			case "mathscr":
