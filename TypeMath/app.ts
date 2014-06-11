@@ -685,7 +685,9 @@ class Application
 				}
 				else
 				{
-					this.interpretLaTeXCode(code.value, InputType.String);
+					this.interpretLaTeXCode(code.value,
+						this.symbols.indexOf(code.value) >= 0
+						? InputType.Symbol : InputType.String);
 					for (var i = 0; i < code.children.length; i++)
 					{
 						this.interpretLaTeX(code.children[i]);
@@ -709,7 +711,7 @@ class Application
 	{
 		this.inputType = type;
 		this.currentInput = code;
-		this.interpretInput();
+		this.interpretInput(false, false);
 	}
 
 	//////////////////////////////////////
@@ -1309,7 +1311,7 @@ class Application
 	//////////////////////////////////////
 	/*  input interpretation			*/
 	//////////////////////////////////////
-	private interpretInput(forceTrans?: boolean): void
+	private interpretInput(forceTrans: boolean = false, support: boolean = true): void
 	{
 		var t: Token = null;
 		var input = this.currentInput;
@@ -1318,13 +1320,13 @@ class Application
 			this.pushNumber();
 		// single character will not interpreted (unless, you cannot input "P"!)
 		// "Vert" shuld be treated as single char in order to enable to input |, \left|, \| and \left\| efficiently.
-		else if ((forceTrans != undefined && forceTrans
+		else if ((forceTrans
 				|| input.length > 1 && input != "Vert"
 				|| input.length == 1 && !(this.inputType == InputType.String || input in this.bracketCor))
 			&& (this.symbols.indexOf(input) >= 0 || input in this.keywords))
 			this.pushCommand();
 		else
-			this.pushSymbols();
+			this.pushSymbols(support);
 		
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
@@ -1452,7 +1454,7 @@ class Application
 				break;
 		}
 	}
-	private pushSymbols(): void
+	private pushSymbols(support: boolean = true): void
 	{
 		var t: Symbol;
 		var input: string[];
@@ -1480,7 +1482,7 @@ class Application
 			this.insertToken(t);
 		}
 
-		if (t.str in this.bracketCor)
+		if (support && t.str in this.bracketCor)
 		{
 			this.insertToken(new Symbol(this.bracketCor[t.str], false));
 			this.activeIndex--;

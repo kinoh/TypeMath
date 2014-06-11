@@ -122,6 +122,14 @@ class LaTeXReader
 						children: arg
 					};
 				}
+			case "^":
+			case "_":
+				this.next(1);
+				return {
+					type: LaTeXASTType.Command,
+					value: c,
+					children: [this.parseToken()]
+				};
 			case "#":
 				m = this.rest.match(/#[0-9]+/);
 				this.next(m[0].length);
