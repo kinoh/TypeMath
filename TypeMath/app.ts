@@ -675,11 +675,22 @@ class Application
 			case LaTeXASTType.Environment:
 			case LaTeXASTType.Command:
 				console.debug("LaTeX: env/cmd " + code.value);
-				this.interpretLaTeXCode(code.value, InputType.String);
-				for (var i = 0; i < code.children.length; i++)
+				if (code.value == "newcommand")
 				{
-					this.interpretLaTeX(code.children[i]);
-					this.moveNext();
+					this.enterMacroMode();
+					this.interpretLaTeX(code.children[2]);
+					this.registerMacro(code.children[0].value,
+						this.macroOption.field.tokens.map(t => t.clone(null)));
+					this.exitMacroMode(false, true);
+				}
+				else
+				{
+					this.interpretLaTeXCode(code.value, InputType.String);
+					for (var i = 0; i < code.children.length; i++)
+					{
+						this.interpretLaTeX(code.children[i]);
+						this.moveNext();
+					}
 				}
 				break;
 			case LaTeXASTType.Number:
@@ -708,14 +719,19 @@ class Application
 	{
 		var epoch = this.records.length;
 
-		this.extrudeToken(this.markedIndex, this.activeIndex);
-		this.markedIndex = -1;
+		if (this.markedIndex < 0)
+			this.insertToken(new Formula(this.activeField));
+		else
+		{
+			this.extrudeToken(this.markedIndex, this.activeIndex);
+			this.markedIndex = -1;
+		}
 		this.enterFormula(true);
 
 		this.macroOption.field = <Formula> this.activeField;
 		this.macroOption.epoch = epoch;
 	}
-	private exitMacroMode(register: boolean = true): boolean
+	private exitMacroMode(register: boolean = true, force: boolean = false): boolean
 	{
 		if (register)
 		{
@@ -737,7 +753,7 @@ class Application
 
 			this.registerMacro(name, this.macroOption.field.tokens.map(t => t.clone(null)));
 		}
-		else
+		else if (!force)
 		{
 			if (!window.confirm("Would you exit macro mode?"))
 				return false;
@@ -1057,7 +1073,7 @@ class Application
 
 		while (i >= 0 && this.records[i].type == RecordType.Transfer)
 		{
-			if (this.inMacroMode && i == this.macroOption.epoch + 2)
+			if (this.inMacroMode && i <= this.macroOption.epoch + 2)
 			{
 				this.exitMacroMode(false);
 				return;

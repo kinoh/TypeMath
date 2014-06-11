@@ -25,7 +25,7 @@ class LaTeXReader
 		var parser = new LaTeXReader(source);
 		return parser.parseSeq();
 	}
-	private parseSeq(): LaTeXAST
+	private parseSeq(eof?: string): LaTeXAST
 	{
 		var tokens: LaTeXAST[] = [];
 
@@ -33,10 +33,10 @@ class LaTeXReader
 
 		while (this.rest.length > 0)
 		{
-			var t = this.parseToken();
+			var t = this.parseToken(eof);
 			if (!t)
 				break;
-			console.debug("parsed " + t.value + " -- " + this.rest);
+			console.debug("parsed " + t.value + " -- " + this.rest.substr(0, 8) + " ...");
 			tokens.push(t);
 		}
 
@@ -51,7 +51,7 @@ class LaTeXReader
 				children: tokens
 			};
 	}
-	private parseToken(): LaTeXAST
+	private parseToken(eof?: string): LaTeXAST
 	{
 		var c = this.rest.charAt(0);
 		var m: string[];
@@ -60,6 +60,12 @@ class LaTeXReader
 		{
 			this.next(1);
 			c = this.rest.charAt(0);
+		}
+
+		if (eof && c == eof)
+		{
+			this.next(1);
+			return;
 		}
 
 		console.debug("parseToken " + c);
@@ -93,16 +99,37 @@ class LaTeXReader
 				}
 				else
 				{
-					var n = this.getArgumentsNum(m[1]);
+					var n = this.getArgObligation(m[1]);
 					var arg: LaTeXAST[] = [];
-					for (var i = 0; i < n; i++)
-						arg.push(this.parseToken());
+					for (var i = 0; i < n.length; i++)
+					{
+						if (n[i])
+							arg.push(this.parseToken());
+						else
+						{
+							if (this.rest.charAt(0) == "[")
+							{
+								this.next(1);
+								arg.push(this.parseSeq("]"));
+							}
+							else
+								arg.push(null);
+						}
+					}
 					return {
 						type: LaTeXASTType.Command,
 						value: m[1],
 						children: arg
 					};
 				}
+			case "#":
+				m = this.rest.match(/#[0-9]+/);
+				this.next(m[0].length);
+				return {
+					type: LaTeXASTType.Symbol,
+					value: m[0],
+					children: null
+				};
 			case "{":
 				this.next(1);
 				return this.parseSeq();
@@ -127,16 +154,18 @@ class LaTeXReader
 				};
 		}
 	}
-	private getArgumentsNum(cmd: string): number
+	private getArgObligation(cmd: string): boolean[]
 	{
 		switch (cmd)
 		{
 			case "newcommand":
-				return 2;
+				return [true, false, true];
 			case "infer":
+				return [true, true, false];
 			case "frac":
-				return 2;
+				return [true, true];
 			case "sqrt":
+				return [false, true];
 			case "mathbf":
 			case "mathrm":
 			case "mathscr":
@@ -161,9 +190,9 @@ class LaTeXReader
 			case "underline":
 			case "overbrace":
 			case "underbrace":
-				return 1;
+				return [true];
 			default:
-				return 0;
+				return [];
 		}
 	}
 	private next(n: number): void
