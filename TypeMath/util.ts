@@ -1,5 +1,10 @@
 ﻿class Util
 {
+	public static trimEnd<T>(a: T[], predicate: (x: T) => boolean): void
+	{
+		if (predicate(a[a.length - 1]))
+			a.pop();
+	}
 	public static groupBy<T1, T2>(a: T1[], f: (x: T1) => T2): T1[][]
 	{
 		var r: T1[][] = [];

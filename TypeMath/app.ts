@@ -693,15 +693,18 @@ class Application
 				}
 				else
 				{
+					var isMatrix = (code.value.indexOf("matrix") >= 1);
 					this.interpretLaTeXCode(code.value,
 						this.symbols.indexOf(code.value) >= 0
 						? InputType.Symbol : InputType.String, true);
+					if (isMatrix && code.children.length > 0)
+						Util.trimEnd(code.children[0].children, x => x.value == "\\\\");
 					for (var i = 0; i < code.children.length; i++)
 					{
 						this.interpretLaTeX(code.children[i]);
 						this.moveNext();
 					}
-					if (code.value.indexOf("matrix") >= 1)
+					if (isMatrix)
 						this.moveNext();
 				}
 				break;
