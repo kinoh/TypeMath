@@ -15,6 +15,7 @@ interface LaTeXAST
 class LaTeXReader
 {
 	rest: string;
+	parsed: string;
 
 	constructor(src: string)
 	{
@@ -53,122 +54,114 @@ class LaTeXReader
 	}
 	private parseToken(eof?: string): LaTeXAST
 	{
-		var c = this.rest.charAt(0);
+		var s: string;
 		var m: string[];
 
-		while (c == " " || c == "\n" || c == "\r")
-		{
-			this.next(1);
-			c = this.rest.charAt(0);
-		}
+		this.white();
 
-		if (eof && c == eof)
-		{
-			this.next(1);
+		if (eof && this.str(eof))
 			return;
-		}
 
-		console.debug("parseToken " + c);
+		console.debug("parseToken " + this.rest.charAt(0));
 
-		switch (c)
+		if (this.str("\\"))
 		{
-			case "\\":
-				if (this.rest.charAt(1) == "\\")
-				{
-					this.next(2);
-					return {
-						type: LaTeXASTType.Symbol,
-						value: "\\\\",
-						children: null
-					};
-				}
-				m = this.rest.match(/^\\([a-zA-Z]+)/);
-				if (!m)
-					console.error("[LaTeXReader.parseToken] unexpected : "
-						+ this.rest.substr(0, 8) + "...");
-				this.next(m[0].length);
-				if (m[1] == "begin")
-				{
-					m = this.rest.match(/\{([a-zA-Z0-9]+\*?)\}/);
-					if (!m)
-						console.error("[LaTeXReader.parseToken] begin command must have 1 arg.");
-					this.next(m[0].length);
-					var env = this.parseSeq();
-					return {
-						type: LaTeXASTType.Environment,
-						value: m[1],
-						children: [env]
-					};
-				}
-				else if (m[1] == "end")
-				{
-					m = this.rest.match(/\{[a-zA-Z0-9]+\*?\}/);
-					this.next(m[0].length);
-					return null;
-				}
+			if (this.str("\\"))
+			{
+				return {
+					type: LaTeXASTType.Symbol,
+					value: "\\\\",
+					children: null
+				};
+			}
+			else if (m = this.pattern(/^[a-zA-Z]+/))
+			{
+				return this.parseCommand(m[0]);
+			}
+		}
+		else if (this.str("^") || this.str("_"))
+		{
+			return {
+				type: LaTeXASTType.Command,
+				value: this.parsed,
+				children: [this.parseToken()]
+			};
+		}
+		else if (this.str("#"))
+		{
+			return {
+				type: LaTeXASTType.Symbol,
+				value: this.parsed,
+				children: null
+			};
+		}
+		else if (this.str("{"))
+		{
+			return this.parseSeq();
+		}
+		else if (this.str("}"))
+		{
+			return null;
+		}
+		else if (this.pattern(/^[0-9]/))
+		{
+			return {
+				type: LaTeXASTType.Number,
+				value: this.parsed,
+				children: null
+			};
+		}
+		else
+		{
+			return {
+				type: LaTeXASTType.Symbol,
+				value: this.head(),
+				children: null
+			};
+		}
+	}
+	private parseCommand(name: string): LaTeXAST
+	{
+		var m: string[];
+
+		if (name == "begin")
+		{
+			m = this.pattern(/\{([a-zA-Z0-9]+\*?)\}/);
+			if (!m)
+				console.error("[LaTeXReader.parseToken] begin command must have 1 arg.");
+			var env = this.parseSeq();
+			return {
+				type: LaTeXASTType.Environment,
+				value: m[1],
+				children: [env]
+			};
+		}
+		else if (name == "end")
+		{
+			m = this.pattern(/\{[a-zA-Z0-9]+\*?\}/);
+			return null;
+		}
+		else
+		{
+			var ob = this.getArgObligation(name);
+			var arg: LaTeXAST[] = [];
+			for (var i = 0; i < ob.length; i++)
+			{
+				if (ob[i])
+					arg.push(this.parseToken());
 				else
 				{
-					var n = this.getArgObligation(m[1]);
-					var arg: LaTeXAST[] = [];
-					for (var i = 0; i < n.length; i++)
-					{
-						if (n[i])
-							arg.push(this.parseToken());
-						else
-						{
-							if (this.rest.charAt(0) == "[")
-							{
-								this.next(1);
-								arg.push(this.parseSeq("]"));
-							}
-							else
-								arg.push(null);
-						}
-					}
-					return {
-						type: LaTeXASTType.Command,
-						value: m[1],
-						children: arg
-					};
+					if (this.str("["))
+						arg.push(this.parseSeq("]"));
+					else
+						arg.push(null);
 				}
-			case "^":
-			case "_":
-				this.next(1);
-				return {
-					type: LaTeXASTType.Command,
-					value: c,
-					children: [this.parseToken()]
-				};
-			case "#":
-				m = this.rest.match(/#[0-9]+/);
-				this.next(m[0].length);
-				return {
-					type: LaTeXASTType.Symbol,
-					value: m[0],
-					children: null
-				};
-			case "{":
-				this.next(1);
-				return this.parseSeq();
-			case "}":
-				this.next(1);
-				return null;
-			case "0": case "1": case "2": case "3": case "4":
-			case "5": case "6": case "7": case "8": case "9":
-				m = this.rest.match(/[0-9]+(\.[0-9]*)?/);
-				this.next(m[0].length);
-				return {
-					type: LaTeXASTType.Number,
-					value: m[0],
-					children: null
-				};
-			default:
-				this.next(1);
-				return {
-					type: LaTeXASTType.Symbol,
-					value: c,
-					children: null
-				};
+			}
+			return {
+				type: LaTeXASTType.Command,
+				value: name,
+				children: arg
+			};
 		}
 	}
 	private getArgObligation(cmd: string): boolean[]
@@ -183,6 +176,7 @@ class LaTeXReader
 				return [true, true];
 			case "sqrt":
 				return [false, true];
+			case "xymatrix":
 			case "left":
 			case "right":
 			case "mathbf":
@@ -214,8 +208,45 @@ class LaTeXReader
 				return [];
 		}
 	}
-	private next(n: number): void
+	private white(): void
 	{
-		this.rest = this.rest.substr(n);
+		var i;
+		for (i = 0; i < this.rest.length; i++)
+		{
+			var c = this.rest.charAt(i);
+
+			if (!(c == " " || c == "\n" || c == "\r"))
+				break;
+		}
+		this.rest = this.rest.substr(i);
+	}
+	private head(): string
+	{
+		var c = this.rest.charAt(0);
+		this.rest = this.rest.substr(1);
+		return c;
+	}
+	private str(s: string): boolean
+	{
+		if (this.rest.substr(0, s.length) == s)
+		{
+			this.parsed = s;
+			this.rest = this.rest.substr(s.length);
+			return true;
+		}
+		else
+			return false;
+	}
+	private pattern(reg: RegExp): string[]
+	{
+		var m = this.rest.match(reg);
+		if (m)
+		{
+			this.parsed = m[0];
+			this.rest = this.rest.substr(m[0].length);
+			return m;
+		}
+		else
+			return null;
 	}
 }

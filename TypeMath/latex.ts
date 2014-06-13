@@ -164,7 +164,7 @@ class LaTeX
 		var s = "";
 		
 		if (deco.size != 0)
-			s = Util.repeat((deco.size > 0 ? "+" : "-"), Math.abs(deco.size)).join();
+			s = Util.repeat((deco.size > 0 ? "+" : "-"), Math.abs(deco.size)).join("");
 
 		if (deco.circle)
 			s += "[o]";
