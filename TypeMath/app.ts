@@ -691,14 +691,129 @@ class Application
 				{
 					this.moveNext();
 				}
+				else if (code.value == "*")
+				{
+					if (!(this.activeField instanceof Diagram)
+						&& this.activeField.parent instanceof Diagram)
+						this.leaveFormula(true);
+					else
+						break;
+
+					if (code.children[2])
+						this.decorateObject("f");
+					var deco: string;
+					if (code.children[0])
+					{
+						deco = code.children[0].value;
+						for (var i = 0; i < deco.length; i++)
+							this.decorateObject(deco.charAt(i));
+					}
+					if (code.children[1])
+						this.decorateObject(code.children[1].value);
+					if (code.children[2])
+					{
+						switch (code.children[2].value)
+						{
+							case "F--": this.decorateObject("d"); break;
+							case "F.": this.decorateObject("."); break;
+							case "F=": this.decorateObject("="); break;
+						}
+					}
+
+					this.enterFormula(true);
+					this.interpretLaTeX(code.children[3]);
+				}
+				else if (code.value == "ar")
+				{
+					if (!(this.activeField instanceof Diagram)
+						&& this.activeField.parent instanceof Diagram)
+						this.leaveFormula(true);
+					else
+						break;
+					var num = 1;
+					var style = StrokeStyle.Plain;
+					var dir = 0;
+					if (code.children[0])
+						num = parseInt(code.children[0].value);
+					if (code.children[1])
+					{
+						switch (code.children[1].value)
+						{
+							case "=>": num = 2;
+							case "->": style = StrokeStyle.Plain;
+								break;
+							case "==>": num = 2;
+							case "-->": style = StrokeStyle.Dashed;
+								break;
+							case ":>": num = 2;
+							case ".>": style = StrokeStyle.Dotted;
+								break;
+							case "~>": style = StrokeStyle.Wavy;
+								break;
+						}
+					}
+					if (code.children[2])
+					{
+						var cols = (<Diagram> this.activeField).cols;
+						var d = code.children[2].value;
+						for (var i = 0; i < d.length; i++)
+						{
+							switch (d.charAt(i))
+							{
+								case "l": dir--; break;
+								case "r": dir++; break;
+								case "u": dir -= cols; break;
+								case "d": dir += cols; break;
+							}
+						}
+					}
+					this.diagramOption.num = num;
+					this.diagramOption.from = this.activeIndex;
+					this.diagramOption.style = style;
+					this.activeIndex += dir;
+					this.addArrow();
+					if (code.children[3])
+					{
+						var pos = LabelPosotion.Left;
+						if (code.children[3].value == "|")
+							pos = LabelPosotion.Middle;
+						else if (code.children[3].value == "_")
+							pos = LabelPosotion.Right;
+						this.diagramOption.from = this.activeIndex;
+						this.activeIndex += dir;
+						var n = (<Diagram> this.activeField)
+							.countArrow(this.diagramOption.from, this.activeIndex);
+						this.diagramOption.arrowIndex = n - 1;
+						this.labelArrow(pos);
+						this.interpretLaTeX(code.children[4]);
+						this.leaveFormula(false);
+					}
+					this.enterFormula(false);
+				}
 				else if (code.value.indexOf("matrix") >= 1)
 				{
 					this.interpretLaTeXCode(code.value, InputType.String);
-					Util.trimEnd(code.children[0].children, x => x.value == "\\\\");
+
+					var cols = code.children[0].children.length;
+					for (var i = 1; i < code.children.length; i++)
+					{
+						this.modifyMatrix(false, true);
+						cols = Math.max(cols, code.children[i].children.length);
+					}
+					for (var j = 1; j < cols; j++)
+						this.modifyMatrix(true, true);
+
+					if (code.value == "xymatrix")
+						this.enterFormula(true);
 					for (var i = 0; i < code.children.length; i++)
 					{
-						this.interpretLaTeX(code.children[i]);
-						this.moveNext();
+						var row = code.children[i];
+						for (var j = 0; j < row.children.length; j++)
+						{
+							var cell = row.children[j];
+							this.interpretLaTeX(cell);
+							this.moveNext();
+						}
 					}
 					this.moveNext();
 				}
@@ -720,27 +835,9 @@ class Application
 				break;
 			case LaTeXASTType.Symbol:
 				console.debug("LaTeX: s " + code.value);
-				if (code.value == "&"
-					&& this.activeField.parent instanceof Matrix)
-				{
-					this.leaveFormula(true, true);
-					if (this.activeIndex == this.activeField.parent.count() - 1)
-						this.modifyMatrix(true, true);
-					this.moveNext();
-					this.enterFormula(true);
-				}
-				else if (code.value == "\\\\"
-					&& this.activeField.parent instanceof Matrix)
-				{
-					this.modifyMatrix(false, true);
-					this.moveNext();
-				}
-				else
-				{
-					this.interpretLaTeXCode(code.value,
-						this.symbols.indexOf(code.value) >= 0
-						? InputType.Symbol : InputType.String);
-				}
+				this.interpretLaTeXCode(code.value,
+					this.symbols.indexOf(code.value) >= 0
+					? InputType.Symbol : InputType.String);
 				break;
 		}
 	}

@@ -52,9 +52,84 @@ class LaTeXReader
 				children: tokens
 			};
 	}
+	private parseMatrix(isXy: boolean): LaTeXAST[]
+	{
+		var mat: LaTeXAST[] = [];
+		var row: LaTeXAST[] = [];
+		var cell: LaTeXAST[] = [];
+		var m: string[];
+
+		while (this.rest)
+		{
+			this.white();
+
+			if (this.str("\\\\"))
+			{
+				row.push({ type: LaTeXASTType.Sequence, value: "", children: cell });
+				mat.push({ type: LaTeXASTType.Sequence, value: "", children: row });
+				cell = [];
+				row = [];
+			}
+			else if (this.str("&"))
+			{
+				row.push({ type: LaTeXASTType.Sequence, value: "", children: cell });
+				cell = [];
+			}
+			else if (isXy && (m = this.pattern(/^\*\s*(\+*|-*)\s*(?:\[(o)\])?\s*(?:\[([^\]]*)\])?/)))
+			{
+				console.debug("*");
+
+				var item = this.parseToken();
+				cell.push({
+					type: LaTeXASTType.Command,
+					value: "*",
+					children: [
+						this.optionalSymbol(m[1]),
+						this.optionalSymbol(m[2]),
+						this.optionalSymbol(m[3]),
+						item]
+				});
+			}
+			else if (isXy && (m = this.pattern(/^\\ar(?:@([2-9]?)(?:\{([^\}]*)\})?)?\[([^\]]*)\]([\^\|_]?)/)))
+			{
+				var args = [
+					this.optionalSymbol(m[1]),
+					this.optionalSymbol(m[2]),
+					this.optionalSymbol(m[3]),
+					this.optionalSymbol(m[4]),
+				];
+				if (m[4])
+					args.push(this.parseToken());
+				cell.push({
+					type: LaTeXASTType.Command,
+					value: "ar",
+					children: args
+				});
+			}
+			else
+			{
+				var t = this.parseToken();
+				if (!t)
+					break;
+				cell.push(t);
+			}
+		}
+
+		if (cell.length > 0)
+			row.push({ type: LaTeXASTType.Sequence, value: "", children: cell });
+		if (row.length > 0)
+			mat.push({ type: LaTeXASTType.Sequence, value: "", children: row });
+
+		return mat;
+	}
+	private optionalSymbol(s: string): LaTeXAST
+	{
+		return s
+			? { type: LaTeXASTType.Symbol, value: s, children: null }
+			: null;
+	}
 	private parseToken(eof?: string): LaTeXAST
 	{
-		var s: string;
 		var m: string[];
 
 		this.white();
@@ -129,17 +204,29 @@ class LaTeXReader
 			m = this.pattern(/\{([a-zA-Z0-9]+\*?)\}/);
 			if (!m)
 				console.error("[LaTeXReader.parseToken] begin command must have 1 arg.");
-			var env = this.parseSeq();
+			var env = (m[1].indexOf("matrix") >= 0
+				? this.parseMatrix(false)
+				: [this.parseSeq()]);
 			return {
 				type: LaTeXASTType.Environment,
 				value: m[1],
-				children: [env]
+				children: env
 			};
 		}
 		else if (name == "end")
 		{
 			m = this.pattern(/\{[a-zA-Z0-9]+\*?\}/);
 			return null;
+		}
+		else if (name == "xymatrix")
+		{
+			this.white();
+			this.str("{");
+			return {
+				type: LaTeXASTType.Command,
+				value: name,
+				children: this.parseMatrix(true)
+			};
 		}
 		else
 		{

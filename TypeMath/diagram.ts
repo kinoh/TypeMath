@@ -136,9 +136,24 @@ class Diagram extends Matrix
 		{
 			if (as[i].to.row == q.row && as[i].to.col == q.col && n-- == 0)
 				return { row: p.row, col: p.col, i: i };
-		};
+		}
 
 		return null;
+	}
+	public countArrow(from: number, to: number): number
+	{
+		var p = this.pos(from);
+		var q = this.pos(to);
+		var as = this.arrows[p.row][p.col];
+		var n = 0;
+
+		for (var i = 0; i < as.length; i++)
+		{
+			if (as[i].to.row == q.row && as[i].to.col == q.col)
+				n++;
+		}
+
+		return n;
 	}
 	private allArrows(): Arrow[]
 	{
