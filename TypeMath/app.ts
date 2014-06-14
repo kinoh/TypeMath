@@ -691,6 +691,18 @@ class Application
 				{
 					this.moveNext();
 				}
+				else if (code.value == "infer")
+				{
+					this.interpretLaTeXCode(code.value, InputType.String);
+					for (var i = 1; i <= 2; i++)
+					{
+						this.interpretLaTeX(code.children[i]);
+						this.moveNext();
+					}
+					if (code.children[0])
+						this.interpretLaTeX(code.children[0]);
+					this.moveNext();
+				}
 				else if (code.value == "*")
 				{
 					if (!(this.activeField instanceof Diagram)

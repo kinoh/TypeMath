@@ -258,7 +258,7 @@ class LaTeXReader
 			case "newcommand":
 				return [true, false, true];
 			case "infer":
-				return [true, true, false];
+				return [false, true, true];
 			case "frac":
 				return [true, true];
 			case "sqrt":
