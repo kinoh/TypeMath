@@ -1,4 +1,5 @@
 ﻿/// <reference path="formula.ts" />
+/// <reference path="util.ts" />
 
 enum LaTeXASTType
 {
@@ -16,6 +17,7 @@ class LaTeXReader
 {
 	rest: string;
 	parsed: string;
+	macroArgNum: { [key: string]: number } = {};
 
 	constructor(src: string)
 	{
@@ -90,7 +92,7 @@ class LaTeXReader
 						item]
 				});
 			}
-			else if (isXy && (m = this.pattern(/^\\ar(?:@([2-9]?)(?:\{([^\}]*)\})?)?\[([^\]]*)\]([\^\|_]?)/)))
+			else if (isXy && (m = this.pattern(/^\\ar(?:@([2-9])?(?:\{([^\}]*)\})?)?\[([^\]]*)\]\s*([\^\|_])?/)))
 			{
 				var args = [
 					this.optionalSymbol(m[1]),
@@ -124,7 +126,7 @@ class LaTeXReader
 	}
 	private optionalSymbol(s: string): LaTeXAST
 	{
-		return s
+		return s || s === ""
 			? { type: LaTeXASTType.Symbol, value: s, children: null }
 			: null;
 	}
@@ -164,9 +166,10 @@ class LaTeXReader
 		}
 		else if (this.str("#"))
 		{
+			m = this.pattern(/^[0-9]+/);
 			return {
 				type: LaTeXASTType.Symbol,
-				value: this.parsed,
+				value: "#" + this.parsed,
 				children: null
 			};
 		}
@@ -244,6 +247,9 @@ class LaTeXReader
 						arg.push(null);
 				}
 			}
+			if (name == "newcommand" && arg[1])
+				this.macroArgNum[arg[0].value] = parseInt(arg[1].value);
+
 			return {
 				type: LaTeXASTType.Command,
 				value: name,
@@ -292,7 +298,10 @@ class LaTeXReader
 			case "underbrace":
 				return [true];
 			default:
-				return [];
+				if (cmd in this.macroArgNum)
+					return Util.repeat(true, this.macroArgNum[cmd]);
+				else
+					return [];
 		}
 	}
 	private white(): void

@@ -781,6 +781,10 @@ class Application
 								break;
 							case "~>": style = StrokeStyle.Wavy;
 								break;
+							case "":
+								style = StrokeStyle.None;
+								this.diagramOption.head = "";
+								break;
 						}
 					}
 					if (code.children[2])
