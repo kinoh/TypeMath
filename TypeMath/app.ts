@@ -137,6 +137,7 @@ class Application
 	};
 	private importMode: boolean;
 	private proofMode: boolean;
+	private autosave: boolean;
 	private clipboard: Token[] = [];
 	private outputCurrentStyle: FontStyle[];
 	private afterLayout: Token[];
@@ -197,7 +198,7 @@ class Application
 		return this.macroOption.field !== null;
 	}
 
-	constructor(field: JQuery, latex: JQuery, importer: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, proof: JQuery)
+	constructor(field: JQuery, latex: JQuery, importer: JQuery, candy: JQuery, ghost: JQuery, select: JQuery, autosave: JQuery, proof: JQuery)
 	{
 		this.field = field;
 		this.importer = importer;
@@ -214,6 +215,12 @@ class Application
 		{
 			this.proofMode = proof.prop("checked");
 		});
+		autosave.change(e =>
+		{
+			this.autosave = autosave.prop("checked");
+			if (!this.autosave)
+				localStorage.setItem("latex", "");
+		});
 		proof.change();
 		ghost.mousedown((e) => { this.dragFrom = { x: e.pageX, y: e.pageY }; this.jumpTo(this.dragFrom); });
 		ghost.mousemove((e) => { this.dragSelect(e); });
@@ -222,9 +229,20 @@ class Application
 		$(document.body).append(this._status = $("<pre/>").css("font-size", "9pt"));
 		$(document.body).append(this._log = $("<pre/>").css("font-size", "9pt"));
 
-		this.render();
-
 		this.glyph = new GlyphFactory();
+
+		var src: string;
+		if (src = localStorage.getItem("latex"))
+		{
+			console.log("load localStorage");
+			var code = LaTeXReader.parse(src);
+			this.interpretLaTeX(code);
+			autosave.prop("checked", true);
+		}
+		else
+			autosave.change();
+
+		this.render();
 	}
 	private enrichKeywords(): void
 	{
@@ -281,20 +299,22 @@ class Application
 		else
 			this.selectedArea.css("visibility", "hidden");
 
-		var latex = [];
+		var latex = "";
 		for (var macro in this.macroTable)
 		{
 			var m = this.macroTable[macro];
-			var s = ["\\newcommand{\\", macro, "}"];
+			var s = "\\newcommand{\\" + macro + "}";
 			if (m.argc > 0)
-				s.push("[", m.argc.toString(), "]");
-			s.push("{", LaTeX.trans(m.content), "}");
-			latex.push(s.join(""));
+				s += "[" + m.argc.toString() + "]";
+			s += "{" + LaTeX.trans(m.content) + "}";
+			latex += s + "\n";
 		}
 		if (latex.length > 0)
-			latex.push("\n");
-		latex.push(LaTeX.trans(this.formula, "", this.proofMode));
-		this.latex.text(latex.join("\n"));
+			latex += "\n";
+		latex += LaTeX.trans(this.formula, "", this.proofMode);
+		this.latex.text(latex);
+		if (this.autosave)
+			localStorage.setItem("latex", latex);
 
 		if (this._enableStatus)
 			this._status.text([
@@ -2550,5 +2570,5 @@ var app;
 
 window.onload = () =>
 {
-	app = new Application($("#field"), $("#latex"), $("#importer"), $("#candy"), $("#ghost"), $("#select"), $("#proofMode"));
+	app = new Application($("#field"), $("#latex"), $("#importer"), $("#candy"), $("#ghost"), $("#select"), $("#autosave"), $("#proofMode"));
 };
