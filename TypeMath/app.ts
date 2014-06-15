@@ -239,8 +239,7 @@ class Application
 			this.interpretLaTeX(code);
 			autosave.prop("checked", true);
 		}
-		else
-			autosave.change();
+		autosave.change();
 
 		this.render();
 	}
