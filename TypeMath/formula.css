@@ -111,6 +111,14 @@
 	position: absolute;
 	font-size: smaller;
 }
+.activeArrow
+{
+	color: #f39;
+}
+.intendedArrow
+{
+	color: #999;
+}
 
 .label
 {

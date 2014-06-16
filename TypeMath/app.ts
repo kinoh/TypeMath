@@ -146,8 +146,6 @@ class Application
 	private dragRect: Rect = null;
 
 	public candMax = 16;
-	public activeArrowColor = "#f39";
-	public intendedArrowColor = "#999";
 
 	private digits: string[] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 	private symbols: string[] = [
@@ -2545,7 +2543,8 @@ class Application
 					var shift = 10 * (k - (as.length - 1) / 2);
 					if (active && k == this.diagramOption.arrowIndex)
 					{
-						d.drawArrow(ctx, box, label, a, shift, this.activeField == d ? this.activeArrowColor : null);
+						var color = $("<div/>").addClass("activeArrow").css("color");
+						d.drawArrow(ctx, box, label, a, shift, this.activeField == d ? color : null);
 						selected = true;
 					}
 					else
@@ -2562,7 +2561,8 @@ class Application
 				num:	this.diagramOption.num,
 				label: null, labelPos: null
 			};
-			d.drawArrow(ctx, box, null, a, 0, this.intendedArrowColor);
+			var color = $("<div/>").addClass("intendedArrow").css("color");
+			d.drawArrow(ctx, box, null, a, 0, color);
 		}
 		if (!selected && d == this.activeField)	// otherwise arrowIndex is kept to undo leaving an arrow label
 			this.diagramOption.arrowIndex = -1;
