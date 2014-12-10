@@ -123,6 +123,7 @@ class Application
 	private currentInput = "";
 	private postInput = "";
 	private inputType = InputType.Empty;
+	private inputEscaped = false;
 	private diagramOption: DiagramOption = {
 		from: -1,
 		to: -1,
@@ -262,6 +263,9 @@ class Application
 	{
 		var a = (this.currentInput != "" ? this.currentInput : Unicode.SixPerEmSpace) + this.postInput;
 
+		if (this.inputEscaped)
+			a = "\\" + a;
+
 		this.active = null;
 		this.afterLayout = [];
 
@@ -393,7 +397,11 @@ class Application
 
 		if (this.inputType == InputType.Empty)
 		{
-			this.currentInput += key;
+			if (key == '\\')
+				this.inputEscaped = true;
+			else
+				this.currentInput += key;
+
 			this.inputType = t;
 		}
 		else
@@ -1497,6 +1505,7 @@ class Application
 		
 		this.currentInput = "";
 		this.inputType = InputType.Empty;
+		this.inputEscaped = false;
 	}
 	private pushNumber(): void
 	{
