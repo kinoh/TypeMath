@@ -36,7 +36,7 @@ class Keyboard
 
 		if (e.key !== undefined && e.key != " " && e.key.length == 1)
 			key = e.key;
-		else if (e.hasOwnProperty("keyIdentifier"))	// Webkit, Blink
+		else if ("keyIdentifier" in e)	// Webkit, Blink
 		{
 			var id = <string> (<any> e).keyIdentifier;
 			if (id in Keyboard.keyMapBlink)
